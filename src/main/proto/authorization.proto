@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package com.pss.authorization.grpc;
+
+option java_package = "com.pss.authorization.api.grpc.proto";
+option java_multiple_files = true;
+option java_outer_classname = "AuthorizationProto";
+
+// Authorization Service - High-performance gRPC API for authorization checks
+service AuthorizationService {
+    // Single authorization check - Target latency: < 5ms
+    rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+    
+    // Batch authorization check - More efficient for multiple checks
+    rpc AuthorizeBatch(AuthorizeBatchRequest) returns (AuthorizeBatchResponse);
+    
+    // Check if subject has specific permission
+    rpc HasPermission(HasPermissionRequest) returns (HasPermissionResponse);
+    
+    // Get all permissions for a subject
+    rpc GetPermissions(GetPermissionsRequest) returns (GetPermissionsResponse);
+}
+
+message AuthorizeRequest {
+    string tenant_id = 1;
+    string subject_id = 2;
+    string external_subject_id = 3;
+    string resource = 4;
+    string action = 5;
+    string resource_id = 6;
+    
+    // Attributes for ABAC evaluation
+    map<string, string> subject_attributes = 7;
+    map<string, string> resource_attributes = 8;
+    map<string, string> environment_attributes = 9;
+    
+    // Options
+    string correlation_id = 10;
+    bool verbose = 11;
+}
+
+message AuthorizeResponse {
+    Decision decision = 1;
+    string mode = 2;
+    string reason = 3;
+    string determined_by = 4;
+    double evaluation_time_ms = 5;
+    bool cached = 6;
+    string cache_level = 7;
+    string correlation_id = 8;
+    int64 timestamp = 9;
+    
+    repeated EvaluationDetail evaluation_details = 10;
+}
+
+message AuthorizeBatchRequest {
+    repeated AuthorizeRequest requests = 1;
+}
+
+message AuthorizeBatchResponse {
+    repeated AuthorizeResponse responses = 1;
+    double total_evaluation_time_ms = 2;
+}
+
+message HasPermissionRequest {
+    string tenant_id = 1;
+    string external_subject_id = 2;
+    string resource = 3;
+    string action = 4;
+}
+
+message HasPermissionResponse {
+    bool permitted = 1;
+    double evaluation_time_ms = 2;
+}
+
+message GetPermissionsRequest {
+    string tenant_id = 1;
+    string external_subject_id = 2;
+    string resource_filter = 3;  // Optional: filter by resource pattern
+}
+
+message GetPermissionsResponse {
+    repeated PermissionInfo permissions = 1;
+    double evaluation_time_ms = 2;
+}
+
+message PermissionInfo {
+    string resource = 1;
+    string action = 2;
+    string permission_id = 3;
+}
+
+message EvaluationDetail {
+    string evaluator = 1;
+    Decision result = 2;
+    string reason = 3;
+    double duration_ms = 4;
+}
+
+enum Decision {
+    DECISION_UNSPECIFIED = 0;
+    PERMIT = 1;
+    DENY = 2;
+    NOT_APPLICABLE = 3;
+    INDETERMINATE = 4;
+}

@@ -1,0 +1,33 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: false
+
+  data:
+    redis:
+      password: ""
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=60s
+
+grpc:
+  server:
+    port: -1
+
+logging:
+  level:
+    root: WARN
+    com.pss.authorization: INFO
+    org.hibernate.SQL: WARN
+    org.testcontainers: INFO
