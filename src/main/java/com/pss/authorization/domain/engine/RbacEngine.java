@@ -10,7 +10,6 @@ import com.pss.authorization.domain.model.rbac.Permission;
 import com.pss.authorization.domain.model.rbac.Role;
 import com.pss.authorization.domain.model.rbac.Subject;
 import com.pss.authorization.persistence.repository.PermissionRepository;
-import com.pss.authorization.persistence.repository.RoleRepository;
 import com.pss.authorization.persistence.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +38,6 @@ public class RbacEngine implements AuthorizationEngine {
 
     private final TwoLevelCacheManager cacheManager;
     private final SubjectRepository subjectRepository;
-    private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
 
     @Override
@@ -135,18 +133,18 @@ public class RbacEngine implements AuthorizationEngine {
         }
 
         Subject subject = subjectOpt.get();
+
+        // Collect all permissions directly from eagerly-fetched roles
+        // (findByExternalIdWithRolesAndPermissions already JOIN FETCHes roles +
+        // permissions)
+        Set<Permission> allPermissions = new HashSet<>();
+        for (Role role : subject.getRoles()) {
+            allPermissions.addAll(role.getAllPermissions());
+        }
+
         Set<UUID> roleIds = subject.getRoles().stream()
                 .map(Role::getId)
                 .collect(Collectors.toSet());
-
-        // Load roles with full hierarchy
-        List<Role> roles = roleRepository.findByIdsWithPermissions(roleIds);
-
-        // Collect all permissions from all roles (including inherited)
-        Set<Permission> allPermissions = new HashSet<>();
-        for (Role role : roles) {
-            allPermissions.addAll(role.getAllPermissions());
-        }
 
         // Build bitmap
         BitSet permissionBits = new BitSet();

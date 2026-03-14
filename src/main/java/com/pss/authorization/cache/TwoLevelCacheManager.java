@@ -128,7 +128,8 @@ public class TwoLevelCacheManager {
     }
 
     /**
-     * Gets permission bit-index from cache (avoids repeated DB lookups per evaluate()).
+     * Gets permission bit-index from cache (avoids repeated DB lookups per
+     * evaluate()).
      */
     public Optional<Integer> getPermissionBitIndex(String tenantId, String resource, String action) {
         String key = buildKey(tenantId, resource, action);
@@ -175,6 +176,15 @@ public class TwoLevelCacheManager {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * Stores authorization context in both cache levels.
+     */
+    public void putAuthorizationContext(String tenantId, String resource, AuthorizationContext context) {
+        String key = buildKey(tenantId, resource);
+        putToL1(CacheConfiguration.AUTHORIZATION_CONTEXT, key, context);
+        putToL2(CacheConfiguration.AUTHORIZATION_CONTEXT, key, context);
     }
 
     /**

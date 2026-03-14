@@ -68,11 +68,13 @@ public class HybridEngine implements AuthorizationEngine {
                 case ABAC_PRIMARY_RBAC_FALLBACK -> evaluateAbacPrimaryRbacFallback(request, details);
             };
 
-            return buildResponse(finalDecision, strategy, details, startTime, Boolean.TRUE.equals(request.getVerbose()));
+            return buildResponse(finalDecision, strategy, details, startTime,
+                    Boolean.TRUE.equals(request.getVerbose()));
 
         } catch (Exception e) {
             log.error("Hybrid evaluation error", e);
-            return buildResponse(Decision.INDETERMINATE, null, details, startTime, Boolean.TRUE.equals(request.getVerbose()));
+            return buildResponse(Decision.INDETERMINATE, null, details, startTime,
+                    Boolean.TRUE.equals(request.getVerbose()));
         }
     }
 
@@ -91,6 +93,9 @@ public class HybridEngine implements AuthorizationEngine {
 
             if (!contexts.isEmpty()) {
                 AuthorizationContext context = contexts.get(0);
+                // Cache for future requests
+                cacheManager.putAuthorizationContext(
+                        request.getTenantId(), request.getResource(), context);
                 return context.getCombiningStrategy() != null
                         ? context.getCombiningStrategy()
                         : CombiningStrategy.AND;

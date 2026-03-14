@@ -29,12 +29,17 @@ class HybridEngineTest {
     static final String RESOURCE = "price";
     static final String ACTION = "BLOCK";
 
-    @Mock RbacEngine rbacEngine;
-    @Mock AbacEngine abacEngine;
-    @Mock TwoLevelCacheManager cacheManager;
-    @Mock AuthorizationContextRepository contextRepository;
+    @Mock
+    RbacEngine rbacEngine;
+    @Mock
+    AbacEngine abacEngine;
+    @Mock
+    TwoLevelCacheManager cacheManager;
+    @Mock
+    AuthorizationContextRepository contextRepository;
 
-    @InjectMocks HybridEngine hybridEngine;
+    @InjectMocks
+    HybridEngine hybridEngine;
 
     private AuthorizationRequest request;
 
@@ -311,6 +316,22 @@ class HybridEngineTest {
     }
 
     // --- Strategy from DB context (cache miss path) ---
+
+    @Test
+    void getStrategy_cacheMiss_loadsFromDB_cachesContext() {
+        when(cacheManager.getAuthorizationContext(TENANT, RESOURCE)).thenReturn(Optional.empty());
+        AuthorizationContext ctx = AuthorizationContext.builder()
+                .id(UUID.randomUUID())
+                .combiningStrategy(CombiningStrategy.OR)
+                .build();
+        when(contextRepository.findMatchingContexts(TENANT, RESOURCE)).thenReturn(List.of(ctx));
+        when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
+
+        hybridEngine.evaluate(request);
+
+        // Verify context is cached back after DB fetch
+        verify(cacheManager).putAuthorizationContext(TENANT, RESOURCE, ctx);
+    }
 
     @Test
     void getStrategy_cacheMiss_loadsFromDB_usesContextStrategy() {

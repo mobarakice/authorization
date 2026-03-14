@@ -1,5 +1,6 @@
 package com.pss.authorization.domain.model.abac;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pss.authorization.domain.model.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -29,6 +30,7 @@ public class PolicyRule extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "policy_id", nullable = false)
+    @JsonIgnore
     private Policy policy;
 
     @Column(name = "name", nullable = false, length = 128)

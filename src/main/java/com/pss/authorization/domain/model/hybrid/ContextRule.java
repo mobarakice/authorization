@@ -1,5 +1,6 @@
 package com.pss.authorization.domain.model.hybrid;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pss.authorization.domain.model.abac.Policy;
 import com.pss.authorization.domain.model.common.BaseEntity;
 import com.pss.authorization.domain.model.rbac.Role;
@@ -29,6 +30,7 @@ public class ContextRule extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "context_id", nullable = false)
+    @JsonIgnore
     private AuthorizationContext context;
 
     /**

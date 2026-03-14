@@ -9,7 +9,6 @@ import com.pss.authorization.domain.model.rbac.Permission;
 import com.pss.authorization.domain.model.rbac.Role;
 import com.pss.authorization.domain.model.rbac.Subject;
 import com.pss.authorization.persistence.repository.PermissionRepository;
-import com.pss.authorization.persistence.repository.RoleRepository;
 import com.pss.authorization.persistence.repository.SubjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,300 +27,290 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class RbacEngineTest {
 
-    static final String TENANT = "pss-test";
-    static final String EXTERNAL_ID = "user-abc";
-    static final String RESOURCE = "flight";
-    static final String ACTION = "READ";
-    static final int FLIGHT_READ_BIT = 0;
+        static final String TENANT = "pss-test";
+        static final String EXTERNAL_ID = "user-abc";
+        static final String RESOURCE = "flight";
+        static final String ACTION = "READ";
+        static final int FLIGHT_READ_BIT = 0;
 
-    @Mock TwoLevelCacheManager cacheManager;
-    @Mock SubjectRepository subjectRepository;
-    @Mock RoleRepository roleRepository;
-    @Mock PermissionRepository permissionRepository;
+        @Mock
+        TwoLevelCacheManager cacheManager;
+        @Mock
+        SubjectRepository subjectRepository;
+        @Mock
+        PermissionRepository permissionRepository;
 
-    @InjectMocks RbacEngine rbacEngine;
+        @InjectMocks
+        RbacEngine rbacEngine;
 
-    private AuthorizationRequest request;
-    private UUID subjectCacheKey;
+        private AuthorizationRequest request;
+        private UUID subjectCacheKey;
 
-    @BeforeEach
-    void setUp() {
-        request = AuthorizationRequest.builder()
-                .tenantId(TENANT)
-                .externalSubjectId(EXTERNAL_ID)
-                .resource(RESOURCE)
-                .action(ACTION)
-                .build();
+        @BeforeEach
+        void setUp() {
+                request = AuthorizationRequest.builder()
+                                .tenantId(TENANT)
+                                .externalSubjectId(EXTERNAL_ID)
+                                .resource(RESOURCE)
+                                .action(ACTION)
+                                .build();
 
-        subjectCacheKey = UUID.nameUUIDFromBytes(
-                (TENANT + ":" + EXTERNAL_ID).getBytes(StandardCharsets.UTF_8));
-    }
+                subjectCacheKey = UUID.nameUUIDFromBytes(
+                                (TENANT + ":" + EXTERNAL_ID).getBytes(StandardCharsets.UTF_8));
+        }
 
-    // --- canHandle ---
+        // --- canHandle ---
 
-    @Test
-    void canHandle_withTenantAndExternalId_returnsTrue() {
-        assertThat(rbacEngine.canHandle(request)).isTrue();
-    }
+        @Test
+        void canHandle_withTenantAndExternalId_returnsTrue() {
+                assertThat(rbacEngine.canHandle(request)).isTrue();
+        }
 
-    @Test
-    void canHandle_withSubjectId_returnsTrue() {
-        var req = AuthorizationRequest.builder()
-                .tenantId(TENANT)
-                .subjectId("some-uuid")
-                .resource(RESOURCE)
-                .action(ACTION)
-                .build();
-        assertThat(rbacEngine.canHandle(req)).isTrue();
-    }
+        @Test
+        void canHandle_withSubjectId_returnsTrue() {
+                var req = AuthorizationRequest.builder()
+                                .tenantId(TENANT)
+                                .subjectId("some-uuid")
+                                .resource(RESOURCE)
+                                .action(ACTION)
+                                .build();
+                assertThat(rbacEngine.canHandle(req)).isTrue();
+        }
 
-    @Test
-    void canHandle_nullTenantId_returnsFalse() {
-        var req = AuthorizationRequest.builder()
-                .externalSubjectId(EXTERNAL_ID)
-                .resource(RESOURCE)
-                .action(ACTION)
-                .build();
-        assertThat(rbacEngine.canHandle(req)).isFalse();
-    }
+        @Test
+        void canHandle_nullTenantId_returnsFalse() {
+                var req = AuthorizationRequest.builder()
+                                .externalSubjectId(EXTERNAL_ID)
+                                .resource(RESOURCE)
+                                .action(ACTION)
+                                .build();
+                assertThat(rbacEngine.canHandle(req)).isFalse();
+        }
 
-    @Test
-    void canHandle_nullSubjectIds_returnsFalse() {
-        var req = AuthorizationRequest.builder()
-                .tenantId(TENANT)
-                .resource(RESOURCE)
-                .action(ACTION)
-                .build();
-        assertThat(rbacEngine.canHandle(req)).isFalse();
-    }
+        @Test
+        void canHandle_nullSubjectIds_returnsFalse() {
+                var req = AuthorizationRequest.builder()
+                                .tenantId(TENANT)
+                                .resource(RESOURCE)
+                                .action(ACTION)
+                                .build();
+                assertThat(rbacEngine.canHandle(req)).isFalse();
+        }
 
-    // --- evaluate: cache hit → PERMIT ---
+        // --- evaluate: cache hit → PERMIT ---
 
-    @Test
-    void evaluate_cacheHitBitmapHasPermission_returnsPermit() {
-        // L1 cache hit: bitmap with bit 0 set
-        BitSet bits = new BitSet();
-        bits.set(FLIGHT_READ_BIT);
-        PermissionBitmap bitmap = PermissionBitmap.builder()
-                .subjectId(UUID.randomUUID())
-                .tenantId(TENANT)
-                .permissions(bits)
-                .build();
+        @Test
+        void evaluate_cacheHitBitmapHasPermission_returnsPermit() {
+                // L1 cache hit: bitmap with bit 0 set
+                BitSet bits = new BitSet();
+                bits.set(FLIGHT_READ_BIT);
+                PermissionBitmap bitmap = PermissionBitmap.builder()
+                                .subjectId(UUID.randomUUID())
+                                .tenantId(TENANT)
+                                .permissions(bits)
+                                .build();
 
-        when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
-                .thenReturn(Optional.of(bitmap));
-        // bit index also cached
-        when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.of(FLIGHT_READ_BIT));
+                when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
+                                .thenReturn(Optional.of(bitmap));
+                // bit index also cached
+                when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.of(FLIGHT_READ_BIT));
 
-        AuthorizationResponse response = rbacEngine.evaluate(request);
+                AuthorizationResponse response = rbacEngine.evaluate(request);
 
-        assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
-        assertThat(response.isCached()).isTrue();
-        // No DB calls when fully cached
-        verifyNoInteractions(subjectRepository, roleRepository, permissionRepository);
-    }
+                assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
+                assertThat(response.isCached()).isTrue();
+                // No DB calls when fully cached
+                verifyNoInteractions(subjectRepository, permissionRepository);
+        }
 
-    @Test
-    void evaluate_cacheHitBitmapMissingBit_returnsDeny() {
-        // bitmap with NO bits set (subject has no permissions matching bit 0)
-        PermissionBitmap bitmap = PermissionBitmap.builder()
-                .subjectId(UUID.randomUUID())
-                .tenantId(TENANT)
-                .permissions(new BitSet())
-                .build();
+        @Test
+        void evaluate_cacheHitBitmapMissingBit_returnsDeny() {
+                // bitmap with NO bits set (subject has no permissions matching bit 0)
+                PermissionBitmap bitmap = PermissionBitmap.builder()
+                                .subjectId(UUID.randomUUID())
+                                .tenantId(TENANT)
+                                .permissions(new BitSet())
+                                .build();
 
-        when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
-                .thenReturn(Optional.of(bitmap));
-        when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.of(FLIGHT_READ_BIT));
+                when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
+                                .thenReturn(Optional.of(bitmap));
+                when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.of(FLIGHT_READ_BIT));
 
-        AuthorizationResponse response = rbacEngine.evaluate(request);
+                AuthorizationResponse response = rbacEngine.evaluate(request);
 
-        assertThat(response.getDecision()).isEqualTo(Decision.DENY);
-    }
+                assertThat(response.getDecision()).isEqualTo(Decision.DENY);
+        }
 
-    // --- evaluate: cache miss → load from DB ---
+        // --- evaluate: cache miss → load from DB ---
 
-    @Test
-    void evaluate_cacheMiss_subjectLoadedFromDB_returnsPermit() {
-        // Cache misses
-        when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
-                .thenReturn(Optional.empty());
-        when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.empty());
+        @Test
+        void evaluate_cacheMiss_subjectLoadedFromDB_returnsPermit() {
+                // Cache misses
+                when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
+                                .thenReturn(Optional.empty());
+                when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.empty());
 
-        // Build subject with role
-        UUID roleId = UUID.randomUUID();
-        Role roleStub = Role.builder().id(roleId).permissions(new HashSet<>()).parentRoles(new HashSet<>()).build();
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXTERNAL_ID)
-                .roles(Set.of(roleStub))
-                .build();
-        when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
-                .thenReturn(Optional.of(subject));
+                // Build subject with role carrying permission at bit 0
+                // (findByExternalIdWithRolesAndPermissions eagerly fetches roles + permissions)
+                Permission perm = Permission.builder()
+                                .id(UUID.randomUUID())
+                                .bitIndex(FLIGHT_READ_BIT)
+                                .build();
+                UUID roleId = UUID.randomUUID();
+                Role role = Role.builder()
+                                .id(roleId)
+                                .permissions(Set.of(perm))
+                                .parentRoles(new HashSet<>())
+                                .build();
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXTERNAL_ID)
+                                .roles(Set.of(role))
+                                .build();
+                when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
+                                .thenReturn(Optional.of(subject));
 
-        // Role with permission at bit 0
-        Permission perm = Permission.builder()
-                .id(UUID.randomUUID())
-                .bitIndex(FLIGHT_READ_BIT)
-                .build();
-        Role fullRole = Role.builder()
-                .id(roleId)
-                .permissions(Set.of(perm))
-                .parentRoles(new HashSet<>())
-                .build();
-        when(roleRepository.findByIdsWithPermissions(Set.of(roleId)))
-                .thenReturn(List.of(fullRole));
+                // Permission definition in DB at bit 0
+                Permission permDef = Permission.builder()
+                                .id(UUID.randomUUID())
+                                .bitIndex(FLIGHT_READ_BIT)
+                                .build();
+                when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.of(permDef));
 
-        // Permission definition in DB at bit 0
-        Permission permDef = Permission.builder()
-                .id(UUID.randomUUID())
-                .bitIndex(FLIGHT_READ_BIT)
-                .build();
-        when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.of(permDef));
+                AuthorizationResponse response = rbacEngine.evaluate(request);
 
-        AuthorizationResponse response = rbacEngine.evaluate(request);
+                assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
+                assertThat(response.isCached()).isFalse();
+                verify(cacheManager).putPermissionBitmap(eq(TENANT), any(UUID.class), any(PermissionBitmap.class));
+                verify(cacheManager).putPermissionBitIndex(TENANT, RESOURCE, ACTION, FLIGHT_READ_BIT);
+        }
 
-        assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
-        assertThat(response.isCached()).isFalse();
-        verify(cacheManager).putPermissionBitmap(eq(TENANT), any(UUID.class), any(PermissionBitmap.class));
-        verify(cacheManager).putPermissionBitIndex(TENANT, RESOURCE, ACTION, FLIGHT_READ_BIT);
-    }
+        @Test
+        void evaluate_cacheMiss_permissionBitNotInRole_returnsDeny() {
+                when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
+                                .thenReturn(Optional.empty());
+                when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.empty());
 
-    @Test
-    void evaluate_cacheMiss_permissionBitNotInRole_returnsDeny() {
-        when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
-                .thenReturn(Optional.empty());
-        when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.empty());
+                // Subject with role that has bit 5 (NOT bit 0 = flight:READ)
+                Permission otherPerm = Permission.builder().id(UUID.randomUUID()).bitIndex(5).build();
+                UUID roleId = UUID.randomUUID();
+                Role role = Role.builder()
+                                .id(roleId)
+                                .permissions(Set.of(otherPerm))
+                                .parentRoles(new HashSet<>())
+                                .build();
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXTERNAL_ID)
+                                .roles(Set.of(role))
+                                .build();
+                when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
+                                .thenReturn(Optional.of(subject));
 
-        // Subject with role that has bit 5 (NOT bit 0 = flight:READ)
-        UUID roleId = UUID.randomUUID();
-        Role roleStub = Role.builder().id(roleId).permissions(new HashSet<>()).parentRoles(new HashSet<>()).build();
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXTERNAL_ID)
-                .roles(Set.of(roleStub))
-                .build();
-        when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
-                .thenReturn(Optional.of(subject));
+                // Permission exists at bit 0 but subject's bitmap doesn't have it
+                Permission permDef = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
+                when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.of(permDef));
 
-        Permission otherPerm = Permission.builder().id(UUID.randomUUID()).bitIndex(5).build();
-        Role fullRole = Role.builder()
-                .id(roleId)
-                .permissions(Set.of(otherPerm))
-                .parentRoles(new HashSet<>())
-                .build();
-        when(roleRepository.findByIdsWithPermissions(Set.of(roleId)))
-                .thenReturn(List.of(fullRole));
+                AuthorizationResponse response = rbacEngine.evaluate(request);
 
-        // Permission exists at bit 0 but subject's bitmap doesn't have it
-        Permission permDef = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
-        when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.of(permDef));
+                assertThat(response.getDecision()).isEqualTo(Decision.DENY);
+                assertThat(response.getReason()).contains(RESOURCE + ":" + ACTION);
+        }
 
-        AuthorizationResponse response = rbacEngine.evaluate(request);
+        // --- evaluate: subject not found ---
 
-        assertThat(response.getDecision()).isEqualTo(Decision.DENY);
-        assertThat(response.getReason()).contains(RESOURCE + ":" + ACTION);
-    }
+        @Test
+        void evaluate_subjectNotFound_returnsDeny() {
+                when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
+                                .thenReturn(Optional.empty());
+                when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
+                                .thenReturn(Optional.empty());
 
-    // --- evaluate: subject not found ---
+                AuthorizationResponse response = rbacEngine.evaluate(request);
 
-    @Test
-    void evaluate_subjectNotFound_returnsDeny() {
-        when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
-                .thenReturn(Optional.empty());
-        when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
-                .thenReturn(Optional.empty());
+                assertThat(response.getDecision()).isEqualTo(Decision.DENY);
+                assertThat(response.getReason()).containsIgnoringCase("subject not found");
+        }
 
-        AuthorizationResponse response = rbacEngine.evaluate(request);
+        // --- evaluate: permission not defined ---
 
-        assertThat(response.getDecision()).isEqualTo(Decision.DENY);
-        assertThat(response.getReason()).containsIgnoringCase("subject not found");
-    }
+        @Test
+        void evaluate_permissionNotDefinedInDB_returnsNotApplicable() {
+                when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
+                                .thenReturn(Optional.empty());
+                when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.empty());
 
-    // --- evaluate: permission not defined ---
+                UUID roleId = UUID.randomUUID();
+                Role role = Role.builder().id(roleId).permissions(new HashSet<>()).parentRoles(new HashSet<>()).build();
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXTERNAL_ID)
+                                .roles(Set.of(role))
+                                .build();
+                when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
+                                .thenReturn(Optional.of(subject));
 
-    @Test
-    void evaluate_permissionNotDefinedInDB_returnsNotApplicable() {
-        when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
-                .thenReturn(Optional.empty());
-        when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.empty());
+                // Permission not defined in DB
+                when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.empty());
 
-        UUID roleId = UUID.randomUUID();
-        Role roleStub = Role.builder().id(roleId).permissions(new HashSet<>()).parentRoles(new HashSet<>()).build();
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXTERNAL_ID)
-                .roles(Set.of(roleStub))
-                .build();
-        when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
-                .thenReturn(Optional.of(subject));
-        when(roleRepository.findByIdsWithPermissions(Set.of(roleId)))
-                .thenReturn(List.of(Role.builder().id(roleId).permissions(new HashSet<>()).parentRoles(new HashSet<>()).build()));
+                AuthorizationResponse response = rbacEngine.evaluate(request);
 
-        // Permission not defined in DB
-        when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.empty());
+                assertThat(response.getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
+                assertThat(response.getReason()).contains("Permission not defined");
+        }
 
-        AuthorizationResponse response = rbacEngine.evaluate(request);
+        // --- evaluate: inherited permissions from parent role ---
 
-        assertThat(response.getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
-        assertThat(response.getReason()).contains("Permission not defined");
-    }
+        @Test
+        void evaluate_inheritedPermissionFromParentRole_returnsPermit() {
+                when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
+                                .thenReturn(Optional.empty());
+                when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.empty());
 
-    // --- evaluate: inherited permissions from parent role ---
+                // Parent role has the permission; child role inherits it
+                Permission perm = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
+                Role parentRole = Role.builder()
+                                .id(UUID.randomUUID())
+                                .permissions(Set.of(perm))
+                                .parentRoles(new HashSet<>())
+                                .build();
+                UUID roleId = UUID.randomUUID();
+                Role childRole = Role.builder()
+                                .id(roleId)
+                                .permissions(new HashSet<>())
+                                .parentRoles(Set.of(parentRole))
+                                .build();
+                // Subject carries the child role (eagerly-loaded with parent hierarchy)
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXTERNAL_ID)
+                                .roles(Set.of(childRole))
+                                .build();
+                when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
+                                .thenReturn(Optional.of(subject));
 
-    @Test
-    void evaluate_inheritedPermissionFromParentRole_returnsPermit() {
-        when(cacheManager.getPermissionBitmap(TENANT, subjectCacheKey))
-                .thenReturn(Optional.empty());
-        when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.empty());
+                Permission permDef = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
+                when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
+                                .thenReturn(Optional.of(permDef));
 
-        UUID roleId = UUID.randomUUID();
-        Role roleStub = Role.builder().id(roleId).permissions(new HashSet<>()).parentRoles(new HashSet<>()).build();
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXTERNAL_ID)
-                .roles(Set.of(roleStub))
-                .build();
-        when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
-                .thenReturn(Optional.of(subject));
+                AuthorizationResponse response = rbacEngine.evaluate(request);
 
-        // Parent role has the permission
-        Permission perm = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
-        Role parentRole = Role.builder()
-                .id(UUID.randomUUID())
-                .permissions(Set.of(perm))
-                .parentRoles(new HashSet<>())
-                .build();
-        Role childRole = Role.builder()
-                .id(roleId)
-                .permissions(new HashSet<>())
-                .parentRoles(Set.of(parentRole))
-                .build();
-        when(roleRepository.findByIdsWithPermissions(Set.of(roleId)))
-                .thenReturn(List.of(childRole));
+                assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
+        }
 
-        Permission permDef = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
-        when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
-                .thenReturn(Optional.of(permDef));
+        // --- getEngineType ---
 
-        AuthorizationResponse response = rbacEngine.evaluate(request);
-
-        assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
-    }
-
-    // --- getEngineType ---
-
-    @Test
-    void getEngineType_returnsRBAC() {
-        assertThat(rbacEngine.getEngineType()).isEqualTo("RBAC");
-    }
+        @Test
+        void getEngineType_returnsRBAC() {
+                assertThat(rbacEngine.getEngineType()).isEqualTo("RBAC");
+        }
 }
