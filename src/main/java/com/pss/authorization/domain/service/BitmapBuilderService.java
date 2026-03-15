@@ -56,7 +56,7 @@ public class BitmapBuilderService {
             Policy policy = allPolicies.get(i);
 
             // Use existing bitIndex if available, otherwise use list position
-        var bitIdx = policy.getBitIndex() != null ? policy.getBitIndex() : i;
+            var bitIdx = policy.getBitIndex() != null ? policy.getBitIndex() : i;
 
             // Ensure policyIndex is large enough
             while (policyIndex.size() <= bitIdx) {
@@ -64,20 +64,20 @@ public class BitmapBuilderService {
             }
             policyIndex.set(bitIdx, policy);
 
-        var targetResource = policy.getTargetResource();
-        var targetAction = policy.getTargetAction();
+            var targetResource = policy.getTargetResource();
+            var targetAction = policy.getTargetAction();
 
             if ("*".equals(targetResource)) {
                 // Global policy — applies to all resources
                 globalPolicies.set(bitIdx);
             } else if (targetResource.endsWith(":*")) {
                 // Prefix wildcard: "orders:*" → prefix "orders:"
-        var prefix = targetResource.substring(0, targetResource.length() - 1);
+                var prefix = targetResource.substring(0, targetResource.length() - 1);
                 WildcardEntry entry = findOrCreateWildcard(wildcardPatterns, prefix, targetAction);
                 entry.policyBits().set(bitIdx);
             } else {
                 // Exact match: "orders:READ" or "orders:*"
-        var key = targetResource + ":" + targetAction;
+                var key = targetResource + ":" + targetAction;
                 exactTargetMap.computeIfAbsent(key, k -> new BitSet()).set(bitIdx);
 
                 // Also index under resource:* if action is wildcard
@@ -122,25 +122,25 @@ public class BitmapBuilderService {
 
         Map<String, ContextConfig> exactMatches = new HashMap<>();
         List<PrefixEntry> prefixPatterns = new ArrayList<>();
-        ContextConfig defaultConfig = new ContextConfig(CombiningStrategy.AND, AuthorizationMode.HYBRID);
+        ContextConfig defaultConfig = new ContextConfig(CombiningStrategy.AND, null);
 
         for (AuthorizationContext ctx : contexts) {
             CombiningStrategy strategy = ctx.getCombiningStrategy() != null
                     ? ctx.getCombiningStrategy()
                     : CombiningStrategy.AND;
-        var mode = ctx.getMode() != null
+            var mode = ctx.getMode() != null
                     ? ctx.getMode()
                     : AuthorizationMode.HYBRID;
 
             ContextConfig config = new ContextConfig(strategy, mode);
-        var pattern = ctx.getResourcePattern();
+            var pattern = ctx.getResourcePattern();
 
             if ("*".equals(pattern)) {
                 // Global default — only if higher priority than existing default
                 defaultConfig = config;
             } else if (pattern.endsWith(":*")) {
                 // Prefix pattern: "orders:*" → prefix "orders:"
-        var prefix = pattern.substring(0, pattern.length() - 1);
+                var prefix = pattern.substring(0, pattern.length() - 1);
                 prefixPatterns.add(PrefixEntry.builder()
                         .prefix(prefix)
                         .priority(ctx.getPriority())

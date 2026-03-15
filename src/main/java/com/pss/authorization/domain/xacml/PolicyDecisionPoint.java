@@ -5,14 +5,16 @@ import com.pss.authorization.domain.dto.AuthorizationResponse;
 import com.pss.authorization.domain.engine.AbacEngine;
 import com.pss.authorization.domain.engine.HybridEngine;
 import com.pss.authorization.domain.engine.RbacEngine;
-import com.pss.authorization.domain.model.hybrid.AuthorizationContext;
 import com.pss.authorization.domain.model.hybrid.AuthorizationMode;
-import com.pss.authorization.persistence.repository.AuthorizationContextRepository;
+import com.pss.authorization.domain.dto.ContextRoutingBitmap;
+import com.pss.authorization.cache.TwoLevelCacheManager;
+import com.pss.authorization.domain.service.BitmapBuilderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -34,7 +36,8 @@ public class PolicyDecisionPoint {
     private final RbacEngine rbacEngine;
     private final AbacEngine abacEngine;
     private final HybridEngine hybridEngine;
-    private final AuthorizationContextRepository contextRepository;
+    private final TwoLevelCacheManager cacheManager;
+    private final BitmapBuilderService bitmapBuilderService;
 
     /**
      * Evaluates an authorization request and returns a decision.
@@ -123,13 +126,22 @@ public class PolicyDecisionPoint {
      * Determines which authorization mode to use.
      */
     private AuthorizationMode determineMode(AuthorizationRequest request) {
-        // Check if resource has specific configuration
-        List<AuthorizationContext> contexts = contextRepository.findMatchingContexts(
-                request.tenantId(),
-                request.resource());
+        // Try routing bitmap from cache
+        Optional<ContextRoutingBitmap> cachedRouting = cacheManager.getContextRoutingBitmap(request.tenantId());
 
-        if (!contexts.isEmpty()) {
-            return contexts.get(0).getMode();
+        ContextRoutingBitmap routing;
+        if (cachedRouting.isPresent()) {
+            routing = cachedRouting.get();
+        } else {
+            // Build routing bitmap (1 DB call for entire tenant)
+            routing = bitmapBuilderService.buildContextRoutingBitmap(request.tenantId());
+            cacheManager.putContextRoutingBitmap(request.tenantId(), routing);
+        }
+
+        ContextRoutingBitmap.ContextConfig config = routing.resolve(request.resource());
+
+        if (config.mode() != null) {
+            return config.mode();
         }
 
         // Default to RBAC for simple permission checks

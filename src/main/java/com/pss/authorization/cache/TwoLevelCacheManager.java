@@ -3,6 +3,7 @@ package com.pss.authorization.cache;
 import com.pss.authorization.domain.dto.ContextRoutingBitmap;
 import com.pss.authorization.domain.dto.PermissionBitmap;
 import com.pss.authorization.domain.dto.PolicyApplicabilityBitmap;
+import com.pss.authorization.domain.dto.SubjectAttributeDto;
 import com.pss.authorization.domain.model.abac.Policy;
 import com.pss.authorization.domain.model.hybrid.AuthorizationContext;
 import com.pss.authorization.domain.model.rbac.Role;
@@ -97,6 +98,38 @@ public class TwoLevelCacheManager {
         var key = buildKey(tenantId, externalSubjectId);
         putToL1(CacheConfiguration.SUBJECT_ROLES, key, roleIds);
         putToL2(CacheConfiguration.SUBJECT_ROLES, key, roleIds);
+    }
+
+    /**
+     * Gets subject attributes from cache.
+     */
+    public Optional<List<SubjectAttributeDto>> getSubjectAttributes(String tenantId, String externalSubjectId) {
+        var key = buildKey(tenantId, externalSubjectId);
+
+        @SuppressWarnings("unchecked")
+        List<SubjectAttributeDto> attributes = getFromL1(CacheConfiguration.SUBJECT_ATTRIBUTES, key, List.class);
+        if (attributes != null) {
+            return Optional.of(attributes);
+        }
+
+        @SuppressWarnings("unchecked")
+        List<SubjectAttributeDto> l2Attributes = getFromL2(CacheConfiguration.SUBJECT_ATTRIBUTES, key, List.class);
+        attributes = l2Attributes;
+        if (attributes != null) {
+            putToL1(CacheConfiguration.SUBJECT_ATTRIBUTES, key, attributes);
+            return Optional.of(attributes);
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Stores subject attributes in cache.
+     */
+    public void putSubjectAttributes(String tenantId, String externalSubjectId, List<SubjectAttributeDto> attributes) {
+        var key = buildKey(tenantId, externalSubjectId);
+        putToL1(CacheConfiguration.SUBJECT_ATTRIBUTES, key, attributes);
+        putToL2(CacheConfiguration.SUBJECT_ATTRIBUTES, key, attributes);
     }
 
     /**
@@ -259,6 +292,7 @@ public class TwoLevelCacheManager {
         // In production, implement selective invalidation using Redis SCAN
         for (String cacheName : List.of(
                 CacheConfiguration.SUBJECT_ROLES,
+                CacheConfiguration.SUBJECT_ATTRIBUTES,
                 CacheConfiguration.SUBJECT_PERMISSIONS,
                 CacheConfiguration.PERMISSION_BITMAP,
                 CacheConfiguration.POLICIES,
@@ -278,6 +312,7 @@ public class TwoLevelCacheManager {
     public void invalidateSubject(String tenantId, String externalSubjectId) {
         var key = buildKey(tenantId, externalSubjectId);
         evictFromBoth(CacheConfiguration.SUBJECT_ROLES, key);
+        evictFromBoth(CacheConfiguration.SUBJECT_ATTRIBUTES, key);
         evictFromBoth(CacheConfiguration.PERMISSION_BITMAP, key);
         evictFromBoth(CacheConfiguration.SUBJECT_PERMISSIONS, key);
     }

@@ -6,6 +6,7 @@ import com.pss.authorization.domain.dto.AuthorizationResponse.Decision;
 import com.pss.authorization.domain.model.rbac.Subject;
 import com.pss.authorization.domain.model.rbac.SubjectAttribute;
 import com.pss.authorization.domain.xacml.PolicyDecisionPoint;
+import com.pss.authorization.cache.TwoLevelCacheManager;
 import com.pss.authorization.persistence.repository.SubjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,8 @@ class AuthorizationServiceTest {
         PolicyDecisionPoint pdp;
         @Mock
         SubjectRepository subjectRepository;
+        @Mock
+        TwoLevelCacheManager cacheManager;
 
         @InjectMocks
         AuthorizationService authorizationService;

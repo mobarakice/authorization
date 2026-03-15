@@ -3,7 +3,9 @@ package com.pss.authorization.service;
 import com.pss.authorization.domain.dto.AuthorizationRequest;
 import com.pss.authorization.domain.dto.AuthorizationResponse;
 import com.pss.authorization.domain.model.rbac.SubjectAttribute;
+import com.pss.authorization.domain.dto.SubjectAttributeDto;
 import com.pss.authorization.domain.xacml.PolicyDecisionPoint;
+import com.pss.authorization.cache.TwoLevelCacheManager;
 import com.pss.authorization.persistence.repository.SubjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,7 @@ public class AuthorizationService {
 
     private final PolicyDecisionPoint pdp;
     private final SubjectRepository subjectRepository;
+    private final TwoLevelCacheManager cacheManager;
 
     @Transactional(readOnly = true)
     public AuthorizationResponse authorize(AuthorizationRequest request) {
@@ -63,22 +66,38 @@ public class AuthorizationService {
             return request;
         }
 
-        return subjectRepository.findByExternalIdWithAttributes(tenantId, externalId)
-                .map(subject -> {
-                    if (subject.getAttributes().isEmpty()) {
-                        return request;
-                    }
+        List<SubjectAttributeDto> cachedAttributes = cacheManager.getSubjectAttributes(tenantId, externalId)
+                .orElse(null);
 
-                    Map<String, Object> enriched = new HashMap<>(
-                            request.subjectAttributes() != null
-                                    ? request.subjectAttributes()
-                                    : Map.of());
+        if (cachedAttributes == null) {
+            var subjectOpt = subjectRepository.findByExternalIdWithAttributes(tenantId, externalId);
+            if (subjectOpt.isPresent()) {
+                cachedAttributes = subjectOpt.get().getAttributes().stream()
+                        .map(attr -> new SubjectAttributeDto(
+                                attr.getAttributeName(),
+                                attr.getAttributeValue(),
+                                attr.getValidFrom(),
+                                attr.getValidUntil()))
+                        .toList();
+                cacheManager.putSubjectAttributes(tenantId, externalId, cachedAttributes);
+            } else {
+                return request;
+            }
+        }
 
-                    subject.getAttributes().stream()
-                            .filter(SubjectAttribute::isValid)
-                            .forEach(attr -> enriched.putIfAbsent(attr.getAttributeName(), attr.getAttributeValue()));
+        if (cachedAttributes.isEmpty()) {
+            return request;
+        }
 
-                    return request.toBuilder().subjectAttributes(enriched).build();
-                }).orElse(request);
+        Map<String, Object> enriched = new HashMap<>(
+                request.subjectAttributes() != null
+                        ? request.subjectAttributes()
+                        : Map.of());
+
+        cachedAttributes.stream()
+                .filter(SubjectAttributeDto::isValid)
+                .forEach(attr -> enriched.putIfAbsent(attr.name(), attr.value()));
+
+        return request.toBuilder().subjectAttributes(enriched).build();
     }
 }

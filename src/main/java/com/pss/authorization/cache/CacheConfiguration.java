@@ -1,8 +1,6 @@
 package com.pss.authorization.cache;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.cfg.DateTimeFeature;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
@@ -14,7 +12,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -45,6 +43,7 @@ public class CacheConfiguration {
 
         // Cache names
         public static final String SUBJECT_ROLES = "subject-roles";
+        public static final String SUBJECT_ATTRIBUTES = "subject-attributes";
         public static final String SUBJECT_PERMISSIONS = "subject-permissions";
         public static final String PERMISSION_BITMAP = "permission-bitmap";
         public static final String PERMISSION_LOOKUP = "permission-lookup";
@@ -78,15 +77,10 @@ public class CacheConfiguration {
          */
         @Bean
         public RedisCacheManager redisCacheManager(RedisConnectionFactory connectionFactory) {
-                // ObjectMapper with JSR310 support for java.time types (Instant, LocalDateTime,
-                // etc.)
-                ObjectMapper redisMapper = new ObjectMapper();
-                redisMapper.registerModule(new JavaTimeModule());
-                redisMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                redisMapper.activateDefaultTyping(
-                                redisMapper.getPolymorphicTypeValidator(),
-                                ObjectMapper.DefaultTyping.EVERYTHING,
-                                com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY);
+                // GenericJacksonJsonRedisSerializer natively creates a tools.jackson (Jackson
+                // 3) JsonMapper
+                // We use the builder customizer to add the JavaTimeModule equivalent and
+                // disable timestamp dates
 
                 RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                                 .prefixCacheNameWith(l2KeyPrefix)
@@ -94,7 +88,11 @@ public class CacheConfiguration {
                                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                                                 .fromSerializer(new StringRedisSerializer()))
                                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                                                .fromSerializer(new GenericJackson2JsonRedisSerializer(redisMapper)))
+                                                .fromSerializer(GenericJacksonJsonRedisSerializer
+                                                                .create(builder -> builder.enableUnsafeDefaultTyping()
+                                                                                .customize(mapperBuilder -> mapperBuilder
+                                                                                                .findAndAddModules()
+                                                                                                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)))))
                                 .disableCachingNullValues();
 
                 // Per-cache TTL configurations
@@ -106,8 +104,9 @@ public class CacheConfiguration {
                 // Policies change less frequently
                 cacheConfigs.put(POLICIES, defaultConfig.entryTtl(Duration.ofMinutes(15)));
 
-                // Subject roles may change more frequently
+                // Subject roles and attributes may change more frequently
                 cacheConfigs.put(SUBJECT_ROLES, defaultConfig.entryTtl(Duration.ofMinutes(5)));
+                cacheConfigs.put(SUBJECT_ATTRIBUTES, defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
                 return RedisCacheManager.builder(connectionFactory)
                                 .cacheDefaults(defaultConfig)
@@ -119,6 +118,7 @@ public class CacheConfiguration {
         private java.util.List<String> getCacheNames() {
                 return java.util.List.of(
                                 SUBJECT_ROLES,
+                                SUBJECT_ATTRIBUTES,
                                 SUBJECT_PERMISSIONS,
                                 PERMISSION_BITMAP,
                                 PERMISSION_LOOKUP,

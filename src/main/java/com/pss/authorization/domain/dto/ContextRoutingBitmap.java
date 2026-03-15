@@ -42,7 +42,7 @@ public record ContextRoutingBitmap(
             prefixPatterns = new ArrayList<>();
         if (defaultConfig == null)
             defaultConfig = new ContextConfig(
-                    CombiningStrategy.AND, AuthorizationMode.HYBRID);
+                    CombiningStrategy.AND, null);
     }
 
     /**
