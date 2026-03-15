@@ -47,19 +47,19 @@ public class AbacEngine implements AuthorizationEngine {
 
     @Override
     public boolean canHandle(AuthorizationRequest request) {
-        return request.getTenantId() != null &&
-                request.getResource() != null &&
-                request.getAction() != null;
+        return request.tenantId() != null &&
+                request.resource() != null &&
+                request.action() != null;
     }
 
     @Override
     public AuthorizationResponse evaluate(AuthorizationRequest request) {
-        long startTime = System.nanoTime();
+        var startTime = System.nanoTime();
 
         try {
-            String tenantId = request.getTenantId();
-            String resource = request.getResource();
-            String action = request.getAction();
+        var tenantId = request.tenantId();
+        var resource = request.resource();
+        var action = request.action();
 
             // Step 1: Get applicable policies from cache or DB
             List<Policy> policies = getApplicablePolicies(tenantId, resource, action);
@@ -73,7 +73,7 @@ public class AbacEngine implements AuthorizationEngine {
             // Step 2: Evaluate each policy
             List<PolicyEvaluationResult> results = new ArrayList<>();
             for (Policy policy : policies) {
-                PolicyEvaluationResult result = evaluatePolicy(policy, request);
+        var result = evaluatePolicy(policy, request);
                 results.add(result);
 
                 // Short-circuit if FIRST_APPLICABLE
@@ -85,7 +85,7 @@ public class AbacEngine implements AuthorizationEngine {
 
             // Step 3: Apply combining algorithm
             Decision finalDecision = applyCombiningAlgorithm(results, CombiningAlgorithm.DENY_OVERRIDES);
-            String determinedBy = results.stream()
+        var determinedBy = results.stream()
                     .filter(r -> r.decision == finalDecision)
                     .map(r -> r.policyName)
                     .findFirst()
@@ -128,17 +128,17 @@ public class AbacEngine implements AuthorizationEngine {
      */
     private PolicyEvaluationResult evaluatePolicy(Policy policy, AuthorizationRequest request) {
         // Check if policy targets this request
-        if (!policy.matchesTarget(request.getResource(), request.getAction())) {
+        if (!policy.matchesTarget(request.resource(), request.action())) {
             return new PolicyEvaluationResult(policy.getName(), Decision.NOT_APPLICABLE, "Target mismatch");
         }
 
         // Evaluate all rules
-        boolean allRulesMatch = true;
+        var allRulesMatch = true;
         for (PolicyRule rule : policy.getRules()) {
             if (!rule.isActive())
                 continue;
 
-            boolean ruleMatch = evaluateRule(rule, request);
+        var ruleMatch = evaluateRule(rule, request);
 
             if ("AND".equals(rule.getConditionLogic())) {
                 allRulesMatch = allRulesMatch && ruleMatch;
@@ -162,20 +162,18 @@ public class AbacEngine implements AuthorizationEngine {
      * Evaluates a single rule against the request.
      */
     private boolean evaluateRule(PolicyRule rule, AuthorizationRequest request) {
-        List<Boolean> conditionResults = new ArrayList<>();
-
-        for (RuleCondition condition : rule.getConditions()) {
-            boolean result = evaluateCondition(condition, request);
-            if (condition.isNegate()) {
-                result = !result;
-            }
-            conditionResults.add(result);
-        }
-
         if ("AND".equals(rule.getConditionLogic())) {
-            return conditionResults.stream().allMatch(Boolean::booleanValue);
+            return rule.getConditions().stream()
+                    .allMatch(condition -> {
+        var result = evaluateCondition(condition, request);
+                        return condition.isNegate() ? !result : result;
+                    });
         } else { // OR
-            return conditionResults.stream().anyMatch(Boolean::booleanValue);
+            return rule.getConditions().stream()
+                    .anyMatch(condition -> {
+        var result = evaluateCondition(condition, request);
+                        return condition.isNegate() ? !result : result;
+                    });
         }
     }
 
@@ -185,7 +183,7 @@ public class AbacEngine implements AuthorizationEngine {
     private boolean evaluateCondition(RuleCondition condition, AuthorizationRequest request) {
         AttributeDefinition attrDef = condition.getAttribute();
         Object actualValue = getAttributeValue(attrDef, request);
-        String expectedValue = condition.getExpectedValue();
+        var expectedValue = condition.getExpectedValue();
         ConditionOperator operator = condition.getOperator();
 
         if (actualValue == null) {
@@ -201,9 +199,9 @@ public class AbacEngine implements AuthorizationEngine {
      */
     private Object getAttributeValue(AttributeDefinition attrDef, AuthorizationRequest request) {
         return switch (attrDef.getCategory()) {
-            case SUBJECT -> request.getSubjectAttributes().get(attrDef.getName());
-            case RESOURCE -> request.getResourceAttributes().get(attrDef.getName());
-            case ACTION -> request.getAction();
+            case SUBJECT -> request.subjectAttributes().get(attrDef.getName());
+            case RESOURCE -> request.resourceAttributes().get(attrDef.getName());
+            case ACTION -> request.action();
             case ENVIRONMENT -> getEnvironmentAttribute(attrDef, request);
         };
     }
@@ -212,7 +210,7 @@ public class AbacEngine implements AuthorizationEngine {
      * Gets environment attribute (time, IP, etc.).
      */
     private Object getEnvironmentAttribute(AttributeDefinition attrDef, AuthorizationRequest request) {
-        Object envValue = request.getEnvironmentAttributes().get(attrDef.getName());
+        Object envValue = request.environmentAttributes().get(attrDef.getName());
         if (envValue != null) {
             return envValue;
         }
@@ -237,7 +235,7 @@ public class AbacEngine implements AuthorizationEngine {
             String expectedValue2,
             AttributeDataType dataType) {
 
-        String actualStr = String.valueOf(actualValue);
+        var actualStr = String.valueOf(actualValue);
 
         return switch (operator) {
             case EQUALS -> actualStr.equals(expectedValue);
@@ -271,12 +269,9 @@ public class AbacEngine implements AuthorizationEngine {
             listJson = listJson.substring(1, listJson.length() - 1);
         }
         String[] items = listJson.split(",");
-        for (String item : items) {
-            if (item.trim().replace("\"", "").equals(value)) {
-                return true;
-            }
-        }
-        return false;
+        return Arrays.stream(items)
+                .map(item -> item.trim().replace("\"", ""))
+                .anyMatch(item -> item.equals(value));
     }
 
     private int compareNumbers(String actual, String expected) {
@@ -298,28 +293,14 @@ public class AbacEngine implements AuthorizationEngine {
      */
     private Decision applyCombiningAlgorithm(List<PolicyEvaluationResult> results, CombiningAlgorithm algorithm) {
         return switch (algorithm) {
-            case DENY_OVERRIDES -> {
-                for (PolicyEvaluationResult result : results) {
-                    if (result.decision == Decision.DENY)
-                        yield Decision.DENY;
-                }
-                for (PolicyEvaluationResult result : results) {
-                    if (result.decision == Decision.PERMIT)
-                        yield Decision.PERMIT;
-                }
-                yield Decision.NOT_APPLICABLE;
-            }
-            case PERMIT_OVERRIDES -> {
-                for (PolicyEvaluationResult result : results) {
-                    if (result.decision == Decision.PERMIT)
-                        yield Decision.PERMIT;
-                }
-                for (PolicyEvaluationResult result : results) {
-                    if (result.decision == Decision.DENY)
-                        yield Decision.DENY;
-                }
-                yield Decision.NOT_APPLICABLE;
-            }
+            case DENY_OVERRIDES ->
+                results.stream().anyMatch(r -> r.decision() == Decision.DENY) ? Decision.DENY
+                        : results.stream().anyMatch(r -> r.decision() == Decision.PERMIT) ? Decision.PERMIT
+                                : Decision.NOT_APPLICABLE;
+            case PERMIT_OVERRIDES ->
+                results.stream().anyMatch(r -> r.decision() == Decision.PERMIT) ? Decision.PERMIT
+                        : results.stream().anyMatch(r -> r.decision() == Decision.DENY) ? Decision.DENY
+                                : Decision.NOT_APPLICABLE;
             case FIRST_APPLICABLE -> results.stream()
                     .filter(r -> r.decision != Decision.NOT_APPLICABLE)
                     .map(r -> r.decision)
@@ -334,7 +315,7 @@ public class AbacEngine implements AuthorizationEngine {
 
     private AuthorizationResponse buildResponse(Decision decision, String reason, long startTimeNanos,
             String determinedBy) {
-        double evaluationTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000.0;
+        var evaluationTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000.0;
 
         return AuthorizationResponse.builder()
                 .decision(decision)

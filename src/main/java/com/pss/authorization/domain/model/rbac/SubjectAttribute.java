@@ -59,8 +59,8 @@ public class SubjectAttribute extends BaseEntity {
      */
     public boolean isValid() {
         Instant now = Instant.now();
-        boolean afterStart = validFrom == null || !now.isBefore(validFrom);
-        boolean beforeEnd = validUntil == null || now.isBefore(validUntil);
+        var afterStart = validFrom == null || !now.isBefore(validFrom);
+        var beforeEnd = validUntil == null || now.isBefore(validUntil);
         return afterStart && beforeEnd;
     }
 }

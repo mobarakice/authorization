@@ -85,7 +85,8 @@ public class CacheConfiguration {
                 redisMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
                 redisMapper.activateDefaultTyping(
                                 redisMapper.getPolymorphicTypeValidator(),
-                                ObjectMapper.DefaultTyping.NON_FINAL);
+                                ObjectMapper.DefaultTyping.EVERYTHING,
+                                com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY);
 
                 RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                                 .prefixCacheNameWith(l2KeyPrefix)

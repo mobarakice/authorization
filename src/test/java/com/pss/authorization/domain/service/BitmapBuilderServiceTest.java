@@ -69,8 +69,8 @@ class BitmapBuilderServiceTest {
         PolicyApplicabilityBitmap bitmap = bitmapBuilderService.buildPolicyBitmap(TENANT);
 
         // Assert
-        assertThat(bitmap.getTenantId()).isEqualTo(TENANT);
-        assertThat(bitmap.getPolicyIndex()).hasSize(3);
+        assertThat(bitmap.tenantId()).isEqualTo(TENANT);
+        assertThat(bitmap.policyIndex()).hasSize(3);
 
         List<Policy> exactMatches = bitmap.getApplicablePolicies("flight", "READ");
         assertThat(exactMatches).containsExactly(exactPolicy, globalPolicy);
@@ -119,21 +119,21 @@ class BitmapBuilderServiceTest {
         ContextRoutingBitmap routingBitmap = bitmapBuilderService.buildContextRoutingBitmap(TENANT);
 
         // Assert
-        assertThat(routingBitmap.getTenantId()).isEqualTo(TENANT);
+        assertThat(routingBitmap.tenantId()).isEqualTo(TENANT);
 
         // Test exact
         ContextRoutingBitmap.ContextConfig exactConfig = routingBitmap.resolve("flight");
-        assertThat(exactConfig.getStrategy()).isEqualTo(CombiningStrategy.RBAC_FIRST);
-        assertThat(exactConfig.getMode()).isEqualTo(AuthorizationMode.HYBRID);
+        assertThat(exactConfig.strategy()).isEqualTo(CombiningStrategy.RBAC_FIRST);
+        assertThat(exactConfig.mode()).isEqualTo(AuthorizationMode.HYBRID);
 
         // Test prefix
         ContextRoutingBitmap.ContextConfig prefixConfig = routingBitmap.resolve("flight:domestic");
-        assertThat(prefixConfig.getStrategy()).isEqualTo(CombiningStrategy.ABAC_FIRST);
-        assertThat(prefixConfig.getMode()).isEqualTo(AuthorizationMode.RBAC);
+        assertThat(prefixConfig.strategy()).isEqualTo(CombiningStrategy.ABAC_FIRST);
+        assertThat(prefixConfig.mode()).isEqualTo(AuthorizationMode.RBAC);
 
         // Test global
         ContextRoutingBitmap.ContextConfig globalConfig = routingBitmap.resolve("unknown");
-        assertThat(globalConfig.getStrategy()).isEqualTo(CombiningStrategy.OR);
-        assertThat(globalConfig.getMode()).isEqualTo(AuthorizationMode.HYBRID);
+        assertThat(globalConfig.strategy()).isEqualTo(CombiningStrategy.OR);
+        assertThat(globalConfig.mode()).isEqualTo(AuthorizationMode.HYBRID);
     }
 }

@@ -118,8 +118,8 @@ class RbacEngineTest {
 
                 AuthorizationResponse response = rbacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
-                assertThat(response.isCached()).isTrue();
+                assertThat(response.decision()).isEqualTo(Decision.PERMIT);
+                assertThat(response.cached()).isTrue();
                 // No DB calls when fully cached
                 verifyNoInteractions(subjectRepository, permissionRepository);
         }
@@ -140,7 +140,7 @@ class RbacEngineTest {
 
                 AuthorizationResponse response = rbacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.DENY);
+                assertThat(response.decision()).isEqualTo(Decision.DENY);
         }
 
         // --- evaluate: cache miss → load from DB ---
@@ -183,8 +183,8 @@ class RbacEngineTest {
 
                 AuthorizationResponse response = rbacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
-                assertThat(response.isCached()).isFalse();
+                assertThat(response.decision()).isEqualTo(Decision.PERMIT);
+                assertThat(response.cached()).isFalse();
                 verify(cacheManager).putPermissionBitmap(eq(TENANT), any(UUID.class), any(PermissionBitmap.class));
                 verify(cacheManager).putPermissionBitIndex(TENANT, RESOURCE, ACTION, FLIGHT_READ_BIT);
         }
@@ -219,8 +219,8 @@ class RbacEngineTest {
 
                 AuthorizationResponse response = rbacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.DENY);
-                assertThat(response.getReason()).contains(RESOURCE + ":" + ACTION);
+                assertThat(response.decision()).isEqualTo(Decision.DENY);
+                assertThat(response.reason()).contains(RESOURCE + ":" + ACTION);
         }
 
         // --- evaluate: subject not found ---
@@ -234,8 +234,8 @@ class RbacEngineTest {
 
                 AuthorizationResponse response = rbacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.DENY);
-                assertThat(response.getReason()).containsIgnoringCase("subject not found");
+                assertThat(response.decision()).isEqualTo(Decision.DENY);
+                assertThat(response.reason()).containsIgnoringCase("subject not found");
         }
 
         // --- evaluate: permission not defined ---
@@ -263,8 +263,8 @@ class RbacEngineTest {
 
                 AuthorizationResponse response = rbacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
-                assertThat(response.getReason()).contains("Permission not defined");
+                assertThat(response.decision()).isEqualTo(Decision.NOT_APPLICABLE);
+                assertThat(response.reason()).contains("Permission not defined");
         }
 
         // --- evaluate: inherited permissions from parent role ---
@@ -304,7 +304,7 @@ class RbacEngineTest {
 
                 AuthorizationResponse response = rbacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
+                assertThat(response.decision()).isEqualTo(Decision.PERMIT);
         }
 
         // --- getEngineType ---

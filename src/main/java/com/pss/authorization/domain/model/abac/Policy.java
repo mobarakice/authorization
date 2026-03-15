@@ -98,11 +98,11 @@ public class Policy extends TenantAwareEntity {
      * Checks if this policy targets the given resource and action.
      */
     public boolean matchesTarget(String resource, String action) {
-        boolean resourceMatch = "*".equals(targetResource)
+        var resourceMatch = "*".equals(targetResource)
                 || targetResource.equals(resource)
                 || (targetResource.endsWith(":*") && resource.startsWith(targetResource.replace(":*", ":")));
 
-        boolean actionMatch = "*".equals(targetAction) || targetAction.equals(action);
+        var actionMatch = "*".equals(targetAction) || targetAction.equals(action);
 
         return resourceMatch && actionMatch;
     }

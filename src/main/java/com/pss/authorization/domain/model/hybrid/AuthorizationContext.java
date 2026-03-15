@@ -80,7 +80,7 @@ public class AuthorizationContext extends TenantAwareEntity {
             return true;
         }
         if (resourcePattern.endsWith(":*")) {
-            String prefix = resourcePattern.replace(":*", ":");
+        var prefix = resourcePattern.replace(":*", ":");
             return resource.startsWith(prefix);
         }
         return resourcePattern.equals(resource);

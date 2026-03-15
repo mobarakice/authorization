@@ -176,22 +176,22 @@ class AbacEngineTest {
 
                 AuthorizationResponse response = abacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
-                assertThat(response.getReason()).containsIgnoringCase("No applicable ABAC policies");
+                assertThat(response.decision()).isEqualTo(Decision.NOT_APPLICABLE);
+                assertThat(response.reason()).containsIgnoringCase("No applicable ABAC policies");
         }
 
         // --- evaluate: CONTAINS operator ---
 
         @Test
         void evaluate_containsMatch_returnsPermit() {
-                request.getSubjectAttributes().put("extra_permissions", "price:BLOCK");
+                request.subjectAttributes().put("extra_permissions", "price:BLOCK");
 
                 Policy policy = buildPermitPolicy("extra_permissions", ConditionOperator.CONTAINS, "price:BLOCK");
                 stubPolicies(List.of(policy));
 
                 AuthorizationResponse response = abacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.PERMIT);
+                assertThat(response.decision()).isEqualTo(Decision.PERMIT);
         }
 
         @Test
@@ -204,48 +204,48 @@ class AbacEngineTest {
 
                 // attribute value is null → condition false → rules not matched →
                 // NOT_APPLICABLE
-                assertThat(response.getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
+                assertThat(response.decision()).isEqualTo(Decision.NOT_APPLICABLE);
         }
 
         @Test
         void evaluate_containsWrongValue_returnsNotApplicable() {
-                request.getSubjectAttributes().put("extra_permissions", "pnl:BLOCK");
+                request.subjectAttributes().put("extra_permissions", "pnl:BLOCK");
 
                 Policy policy = buildPermitPolicy("extra_permissions", ConditionOperator.CONTAINS, "price:BLOCK");
                 stubPolicies(List.of(policy));
 
                 AuthorizationResponse response = abacEngine.evaluate(request);
 
-                assertThat(response.getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
+                assertThat(response.decision()).isEqualTo(Decision.NOT_APPLICABLE);
         }
 
         // --- evaluate: EQUALS operator ---
 
         @Test
         void evaluate_equalsMatch_returnsPermit() {
-                request.getSubjectAttributes().put("department", "FINANCE");
+                request.subjectAttributes().put("department", "FINANCE");
 
                 Policy policy = buildPermitPolicy("department", ConditionOperator.EQUALS, "FINANCE");
                 stubPolicies(List.of(policy));
 
-                assertThat(abacEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+                assertThat(abacEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         }
 
         @Test
         void evaluate_equalsNoMatch_returnsNotApplicable() {
-                request.getSubjectAttributes().put("department", "SALES");
+                request.subjectAttributes().put("department", "SALES");
 
                 Policy policy = buildPermitPolicy("department", ConditionOperator.EQUALS, "FINANCE");
                 stubPolicies(List.of(policy));
 
-                assertThat(abacEngine.evaluate(request).getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
+                assertThat(abacEngine.evaluate(request).decision()).isEqualTo(Decision.NOT_APPLICABLE);
         }
 
         // --- evaluate: DENY_OVERRIDES combining algorithm ---
 
         @Test
         void evaluate_denyOverrides_denyWinsOverPermit() {
-                request.getSubjectAttributes().put("extra_permissions", "price:BLOCK");
+                request.subjectAttributes().put("extra_permissions", "price:BLOCK");
 
                 Policy permitPolicy = buildPermitPolicy("extra_permissions", ConditionOperator.CONTAINS, "price:BLOCK");
                 Policy denyPolicy = buildDenyPolicy("extra_permissions", ConditionOperator.CONTAINS, "price:BLOCK");
@@ -253,24 +253,24 @@ class AbacEngineTest {
 
                 stubPolicies(List.of(permitPolicy, denyPolicy));
 
-                assertThat(abacEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+                assertThat(abacEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
         }
 
         @Test
         void evaluate_denyPolicy_matchedCondition_returnsDeny() {
-                request.getSubjectAttributes().put("blocked", "true");
+                request.subjectAttributes().put("blocked", "true");
 
                 Policy denyPolicy = buildDenyPolicy("blocked", ConditionOperator.EQUALS, "true");
                 stubPolicies(List.of(denyPolicy));
 
-                assertThat(abacEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+                assertThat(abacEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
         }
 
         // --- evaluate: negated condition ---
 
         @Test
         void evaluate_negatedConditionMatchBecomesNonMatch_returnsNotApplicable() {
-                request.getSubjectAttributes().put("extra_permissions", "price:BLOCK");
+                request.subjectAttributes().put("extra_permissions", "price:BLOCK");
 
                 AttributeDefinition attrDef = AttributeDefinition.builder()
                                 .id(UUID.randomUUID())
@@ -310,14 +310,14 @@ class AbacEngineTest {
 
                 stubPolicies(List.of(policy));
 
-                assertThat(abacEngine.evaluate(request).getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
+                assertThat(abacEngine.evaluate(request).decision()).isEqualTo(Decision.NOT_APPLICABLE);
         }
 
         // --- evaluate: OR condition logic ---
 
         @Test
         void evaluate_orConditionLogic_oneMatchPermits() {
-                request.getSubjectAttributes().put("extra_permissions", "price:BLOCK");
+                request.subjectAttributes().put("extra_permissions", "price:BLOCK");
 
                 AttributeDefinition attrDef = AttributeDefinition.builder()
                                 .id(UUID.randomUUID())
@@ -356,7 +356,7 @@ class AbacEngineTest {
 
                 stubPolicies(List.of(policy));
 
-                assertThat(abacEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+                assertThat(abacEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         }
 
         // --- evaluate: inactive rule skipped ---
@@ -365,7 +365,7 @@ class AbacEngineTest {
         void evaluate_inactiveRule_skipped_policyStillApplies() {
                 // AbacEngine initialises allRulesMatch=true; skipping ALL rules leaves it true
                 // so the policy effect fires regardless of conditions.
-                request.getSubjectAttributes().put("extra_permissions", "price:BLOCK");
+                request.subjectAttributes().put("extra_permissions", "price:BLOCK");
 
                 Policy policy = buildPermitPolicy("extra_permissions", ConditionOperator.CONTAINS, "price:BLOCK");
                 policy.getRules().forEach(r -> r.setActive(false));
@@ -374,7 +374,7 @@ class AbacEngineTest {
 
                 // Behaviour: no active rule → allRulesMatch stays true → effect (PERMIT) is
                 // applied
-                assertThat(abacEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+                assertThat(abacEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         }
 
         // --- getEngineType ---

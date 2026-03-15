@@ -25,296 +25,302 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuthorizationServiceTest {
 
-    static final String TENANT = "pss-test";
-    static final String EXT_ID = "shamim";
+        static final String TENANT = "pss-test";
+        static final String EXT_ID = "shamim";
 
-    @Mock PolicyDecisionPoint pdp;
-    @Mock SubjectRepository subjectRepository;
+        @Mock
+        PolicyDecisionPoint pdp;
+        @Mock
+        SubjectRepository subjectRepository;
 
-    @InjectMocks AuthorizationService authorizationService;
+        @InjectMocks
+        AuthorizationService authorizationService;
 
-    private AuthorizationRequest request;
-    private AuthorizationResponse permitResponse;
+        private AuthorizationRequest request;
+        private AuthorizationResponse permitResponse;
 
-    @BeforeEach
-    void setUp() {
-        request = AuthorizationRequest.builder()
-                .tenantId(TENANT)
-                .externalSubjectId(EXT_ID)
-                .resource("price")
-                .action("BLOCK")
-                .subjectAttributes(new HashMap<>())
-                .build();
+        @BeforeEach
+        void setUp() {
+                request = AuthorizationRequest.builder()
+                                .tenantId(TENANT)
+                                .externalSubjectId(EXT_ID)
+                                .resource("price")
+                                .action("BLOCK")
+                                .subjectAttributes(new HashMap<>())
+                                .build();
 
-        permitResponse = AuthorizationResponse.builder()
-                .decision(Decision.PERMIT)
-                .reason("granted")
-                .build();
-    }
+                permitResponse = AuthorizationResponse.builder()
+                                .decision(Decision.PERMIT)
+                                .reason("granted")
+                                .build();
+        }
 
-    // --- Helper ---
+        // --- Helper ---
 
-    private SubjectAttribute attribute(String name, String value) {
-        return SubjectAttribute.builder()
-                .id(UUID.randomUUID())
-                .attributeName(name)
-                .attributeValue(value)
-                .valueType("STRING")
-                .build();
-    }
+        private SubjectAttribute attribute(String name, String value) {
+                return SubjectAttribute.builder()
+                                .id(UUID.randomUUID())
+                                .attributeName(name)
+                                .attributeValue(value)
+                                .valueType("STRING")
+                                .build();
+        }
 
-    // --- authorize: attribute enrichment ---
+        // --- authorize: attribute enrichment ---
 
-    @Test
-    void authorize_enrichesSubjectAttributesFromDB() {
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXT_ID)
-                .attributes(Set.of(attribute("extra_permissions", "price:BLOCK")))
-                .build();
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(subject));
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+        @Test
+        void authorize_enrichesSubjectAttributesFromDB() {
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXT_ID)
+                                .attributes(Set.of(attribute("extra_permissions", "price:BLOCK")))
+                                .build();
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(subject));
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        // Capture what PDP received
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        assertThat(captor.getValue().getSubjectAttributes())
-                .containsEntry("extra_permissions", "price:BLOCK");
-    }
+                // Capture what PDP received
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                assertThat(captor.getValue().subjectAttributes())
+                                .containsEntry("extra_permissions", "price:BLOCK");
+        }
 
-    @Test
-    void authorize_subjectHasNoAttributes_pdpCalledWithEmptyAttributes() {
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXT_ID)
-                .attributes(new HashSet<>())
-                .build();
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(subject));
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+        @Test
+        void authorize_subjectHasNoAttributes_pdpCalledWithEmptyAttributes() {
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXT_ID)
+                                .attributes(new HashSet<>())
+                                .build();
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(subject));
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        assertThat(captor.getValue().getSubjectAttributes()).isEmpty();
-    }
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                assertThat(captor.getValue().subjectAttributes()).isEmpty();
+        }
 
-    @Test
-    void authorize_subjectNotFound_pdpCalledWithEmptyAttributes() {
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.empty());
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+        @Test
+        void authorize_subjectNotFound_pdpCalledWithEmptyAttributes() {
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.empty());
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        assertThat(captor.getValue().getSubjectAttributes()).isEmpty();
-    }
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                assertThat(captor.getValue().subjectAttributes()).isEmpty();
+        }
 
-    // --- authorize: null guards ---
+        // --- authorize: null guards ---
 
-    @Test
-    void authorize_nullTenantId_skipsEnrichment() {
-        request.setTenantId(null);
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+        @Test
+        void authorize_nullTenantId_skipsEnrichment() {
+                request = request.toBuilder().tenantId(null).build();
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        verifyNoInteractions(subjectRepository);
-        verify(pdp).evaluate(request);
-    }
+                verifyNoInteractions(subjectRepository);
+                verify(pdp).evaluate(request);
+        }
 
-    @Test
-    void authorize_nullExternalSubjectId_skipsEnrichment() {
-        request.setExternalSubjectId(null);
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+        @Test
+        void authorize_nullExternalSubjectId_skipsEnrichment() {
+                request = request.toBuilder().externalSubjectId(null).build();
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        verifyNoInteractions(subjectRepository);
-        verify(pdp).evaluate(request);
-    }
+                verifyNoInteractions(subjectRepository);
+                verify(pdp).evaluate(request);
+        }
 
-    // --- authorize: putIfAbsent semantics ---
+        // --- authorize: putIfAbsent semantics ---
 
-    @Test
-    void authorize_callerProvidedAttributeNotOverwrittenByDB() {
-        // Caller provides extra_permissions = "caller-value"
-        request.getSubjectAttributes().put("extra_permissions", "caller-value");
+        @Test
+        void authorize_callerProvidedAttributeNotOverwrittenByDB() {
+                // Caller provides extra_permissions = "caller-value"
+                request.subjectAttributes().put("extra_permissions", "caller-value");
 
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXT_ID)
-                .attributes(Set.of(attribute("extra_permissions", "db-value")))
-                .build();
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(subject));
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXT_ID)
+                                .attributes(Set.of(attribute("extra_permissions", "db-value")))
+                                .build();
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(subject));
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        // putIfAbsent: caller value must win
-        assertThat(captor.getValue().getSubjectAttributes())
-                .containsEntry("extra_permissions", "caller-value");
-    }
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                // putIfAbsent: caller value must win
+                assertThat(captor.getValue().subjectAttributes())
+                                .containsEntry("extra_permissions", "caller-value");
+        }
 
-    @Test
-    void authorize_multipleAttributesMerged() {
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXT_ID)
-                .attributes(Set.of(
-                        attribute("extra_permissions", "price:BLOCK"),
-                        attribute("department", "FINANCE")
-                ))
-                .build();
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(subject));
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+        @Test
+        void authorize_multipleAttributesMerged() {
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXT_ID)
+                                .attributes(Set.of(
+                                                attribute("extra_permissions", "price:BLOCK"),
+                                                attribute("department", "FINANCE")))
+                                .build();
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(subject));
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        assertThat(captor.getValue().getSubjectAttributes())
-                .containsEntry("extra_permissions", "price:BLOCK")
-                .containsEntry("department", "FINANCE");
-    }
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                assertThat(captor.getValue().subjectAttributes())
+                                .containsEntry("extra_permissions", "price:BLOCK")
+                                .containsEntry("department", "FINANCE");
+        }
 
-    // --- authorize: expired attribute ---
+        // --- authorize: expired attribute ---
 
-    @Test
-    void authorize_expiredAttribute_notInjected() {
-        SubjectAttribute expired = SubjectAttribute.builder()
-                .id(UUID.randomUUID())
-                .attributeName("extra_permissions")
-                .attributeValue("price:BLOCK")
-                .valueType("STRING")
-                .validFrom(Instant.now().minusSeconds(3600))
-                .validUntil(Instant.now().minusSeconds(1))  // expired 1 second ago
-                .build();
+        @Test
+        void authorize_expiredAttribute_notInjected() {
+                SubjectAttribute expired = SubjectAttribute.builder()
+                                .id(UUID.randomUUID())
+                                .attributeName("extra_permissions")
+                                .attributeValue("price:BLOCK")
+                                .valueType("STRING")
+                                .validFrom(Instant.now().minusSeconds(3600))
+                                .validUntil(Instant.now().minusSeconds(1)) // expired 1 second ago
+                                .build();
 
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXT_ID)
-                .attributes(Set.of(expired))
-                .build();
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(subject));
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXT_ID)
+                                .attributes(Set.of(expired))
+                                .build();
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(subject));
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        // expired attribute must not be injected
-        assertThat(captor.getValue().getSubjectAttributes()).doesNotContainKey("extra_permissions");
-    }
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                // expired attribute must not be injected
+                assertThat(captor.getValue().subjectAttributes()).doesNotContainKey("extra_permissions");
+        }
 
-    @Test
-    void authorize_futureAttribute_notInjected() {
-        SubjectAttribute future = SubjectAttribute.builder()
-                .id(UUID.randomUUID())
-                .attributeName("extra_permissions")
-                .attributeValue("price:BLOCK")
-                .valueType("STRING")
-                .validFrom(Instant.now().plusSeconds(3600))  // starts in the future
-                .build();
+        @Test
+        void authorize_futureAttribute_notInjected() {
+                SubjectAttribute future = SubjectAttribute.builder()
+                                .id(UUID.randomUUID())
+                                .attributeName("extra_permissions")
+                                .attributeValue("price:BLOCK")
+                                .valueType("STRING")
+                                .validFrom(Instant.now().plusSeconds(3600)) // starts in the future
+                                .build();
 
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXT_ID)
-                .attributes(Set.of(future))
-                .build();
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(subject));
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXT_ID)
+                                .attributes(Set.of(future))
+                                .build();
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(subject));
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        assertThat(captor.getValue().getSubjectAttributes()).doesNotContainKey("extra_permissions");
-    }
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                assertThat(captor.getValue().subjectAttributes()).doesNotContainKey("extra_permissions");
+        }
 
-    @Test
-    void authorize_validAttribute_withBoundaries_isInjected() {
-        SubjectAttribute valid = SubjectAttribute.builder()
-                .id(UUID.randomUUID())
-                .attributeName("extra_permissions")
-                .attributeValue("price:BLOCK")
-                .valueType("STRING")
-                .validFrom(Instant.now().minusSeconds(3600))
-                .validUntil(Instant.now().plusSeconds(3600))
-                .build();
+        @Test
+        void authorize_validAttribute_withBoundaries_isInjected() {
+                SubjectAttribute valid = SubjectAttribute.builder()
+                                .id(UUID.randomUUID())
+                                .attributeName("extra_permissions")
+                                .attributeValue("price:BLOCK")
+                                .valueType("STRING")
+                                .validFrom(Instant.now().minusSeconds(3600))
+                                .validUntil(Instant.now().plusSeconds(3600))
+                                .build();
 
-        Subject subject = Subject.builder()
-                .id(UUID.randomUUID())
-                .externalId(EXT_ID)
-                .attributes(Set.of(valid))
-                .build();
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(subject));
-        when(pdp.evaluate(any())).thenReturn(permitResponse);
+                Subject subject = Subject.builder()
+                                .id(UUID.randomUUID())
+                                .externalId(EXT_ID)
+                                .attributes(Set.of(valid))
+                                .build();
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(subject));
+                when(pdp.evaluate(any())).thenReturn(permitResponse);
 
-        authorizationService.authorize(request);
+                authorizationService.authorize(request);
 
-        ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
-        verify(pdp).evaluate(captor.capture());
-        assertThat(captor.getValue().getSubjectAttributes())
-                .containsEntry("extra_permissions", "price:BLOCK");
-    }
+                ArgumentCaptor<AuthorizationRequest> captor = ArgumentCaptor.forClass(AuthorizationRequest.class);
+                verify(pdp).evaluate(captor.capture());
+                assertThat(captor.getValue().subjectAttributes())
+                                .containsEntry("extra_permissions", "price:BLOCK");
+        }
 
-    // --- authorizeBatch ---
+        // --- authorizeBatch ---
 
-    @Test
-    void authorizeBatch_enrichesAllRequests() {
-        AuthorizationRequest req1 = AuthorizationRequest.builder()
-                .tenantId(TENANT).externalSubjectId(EXT_ID)
-                .resource("price").action("BLOCK").subjectAttributes(new HashMap<>()).build();
-        AuthorizationRequest req2 = AuthorizationRequest.builder()
-                .tenantId(TENANT).externalSubjectId("mahtab")
-                .resource("flight").action("READ").subjectAttributes(new HashMap<>()).build();
+        @Test
+        void authorizeBatch_enrichesAllRequests() {
+                AuthorizationRequest req1 = AuthorizationRequest.builder()
+                                .tenantId(TENANT).externalSubjectId(EXT_ID)
+                                .resource("price").action("BLOCK").subjectAttributes(new HashMap<>()).build();
+                AuthorizationRequest req2 = AuthorizationRequest.builder()
+                                .tenantId(TENANT).externalSubjectId("mahtab")
+                                .resource("flight").action("READ").subjectAttributes(new HashMap<>()).build();
 
-        Subject shamimSubject = Subject.builder()
-                .id(UUID.randomUUID()).externalId(EXT_ID)
-                .attributes(Set.of(attribute("extra_permissions", "price:BLOCK"))).build();
-        Subject mahtabSubject = Subject.builder()
-                .id(UUID.randomUUID()).externalId("mahtab")
-                .attributes(new HashSet<>()).build();
+                Subject shamimSubject = Subject.builder()
+                                .id(UUID.randomUUID()).externalId(EXT_ID)
+                                .attributes(Set.of(attribute("extra_permissions", "price:BLOCK"))).build();
+                Subject mahtabSubject = Subject.builder()
+                                .id(UUID.randomUUID()).externalId("mahtab")
+                                .attributes(new HashSet<>()).build();
 
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
-                .thenReturn(Optional.of(shamimSubject));
-        when(subjectRepository.findByExternalIdWithAttributes(TENANT, "mahtab"))
-                .thenReturn(Optional.of(mahtabSubject));
-        // authorizeBatch calls pdp.evaluateBatch, not pdp.evaluate
-        when(pdp.evaluateBatch(anyList())).thenReturn(List.of(permitResponse, permitResponse));
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
+                                .thenReturn(Optional.of(shamimSubject));
+                when(subjectRepository.findByExternalIdWithAttributes(TENANT, "mahtab"))
+                                .thenReturn(Optional.of(mahtabSubject));
+                // authorizeBatch calls pdp.evaluateBatch, not pdp.evaluate
+                when(pdp.evaluateBatch(anyList())).thenReturn(List.of(permitResponse, permitResponse));
 
-        authorizationService.authorizeBatch(List.of(req1, req2));
+                authorizationService.authorizeBatch(List.of(req1, req2));
 
-        verify(subjectRepository).findByExternalIdWithAttributes(TENANT, EXT_ID);
-        verify(subjectRepository).findByExternalIdWithAttributes(TENANT, "mahtab");
-        verify(pdp).evaluateBatch(anyList());
+                verify(subjectRepository).findByExternalIdWithAttributes(TENANT, EXT_ID);
+                verify(subjectRepository).findByExternalIdWithAttributes(TENANT, "mahtab");
+                ArgumentCaptor<List<AuthorizationRequest>> captor = ArgumentCaptor.forClass(List.class);
+                verify(pdp).evaluateBatch(captor.capture());
 
-        // Shamim's request should have the enriched attribute
-        assertThat(req1.getSubjectAttributes()).containsEntry("extra_permissions", "price:BLOCK");
-        // Mahtab's request should remain empty
-        assertThat(req2.getSubjectAttributes()).isEmpty();
-    }
+                AuthorizationRequest enriched1 = captor.getValue().get(0);
+                AuthorizationRequest enriched2 = captor.getValue().get(1);
 
-    @Test
-    void authorizeBatch_emptyList_returnsEmpty() {
-        when(pdp.evaluateBatch(anyList())).thenReturn(List.of());
-        List<AuthorizationResponse> results = authorizationService.authorizeBatch(List.of());
-        assertThat(results).isEmpty();
-        verifyNoInteractions(subjectRepository);
-        verify(pdp).evaluateBatch(List.of());
-    }
+                // Shamim's request should have the enriched attribute
+                assertThat(enriched1.subjectAttributes()).containsEntry("extra_permissions", "price:BLOCK");
+                // Mahtab's request should remain empty
+                assertThat(enriched2.subjectAttributes()).isEmpty();
+        }
+
+        @Test
+        void authorizeBatch_emptyList_returnsEmpty() {
+                when(pdp.evaluateBatch(anyList())).thenReturn(List.of());
+                List<AuthorizationResponse> results = authorizationService.authorizeBatch(List.of());
+                assertThat(results).isEmpty();
+                verifyNoInteractions(subjectRepository);
+                verify(pdp).evaluateBatch(List.of());
+        }
 }

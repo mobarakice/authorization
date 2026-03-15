@@ -174,10 +174,10 @@ class AuthorizationIntegrationTest extends AbstractIntegrationTest {
                 assertThat(response)
                                 .as("Response must not be null for: %s", description)
                                 .isNotNull();
-                assertThat(response.getDecision())
+                assertThat(response.decision())
                                 .as("%s → %s:%s should be %s. Reason: %s",
                                                 externalSubjectId, resource, action, expectedDecision,
-                                                response != null ? response.getReason() : "null response")
+                                                response != null ? response.reason() : "null response")
                                 .isEqualTo(expectedDecision);
         }
 }

@@ -14,6 +14,7 @@ import com.pss.authorization.persistence.repository.PolicyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -38,10 +39,10 @@ public class BitmapBuilderService {
      * @param tenantId tenant identifier
      * @return pre-computed bitmap (1 DB call)
      */
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public PolicyApplicabilityBitmap buildPolicyBitmap(String tenantId) {
         log.debug("Building PolicyApplicabilityBitmap for tenant: {}", tenantId);
-        long start = System.nanoTime();
+        var start = System.nanoTime();
 
         List<Policy> allPolicies = policyRepository.findActivePoliciesWithRules(tenantId);
 
@@ -55,7 +56,7 @@ public class BitmapBuilderService {
             Policy policy = allPolicies.get(i);
 
             // Use existing bitIndex if available, otherwise use list position
-            int bitIdx = policy.getBitIndex() != null ? policy.getBitIndex() : i;
+        var bitIdx = policy.getBitIndex() != null ? policy.getBitIndex() : i;
 
             // Ensure policyIndex is large enough
             while (policyIndex.size() <= bitIdx) {
@@ -63,20 +64,20 @@ public class BitmapBuilderService {
             }
             policyIndex.set(bitIdx, policy);
 
-            String targetResource = policy.getTargetResource();
-            String targetAction = policy.getTargetAction();
+        var targetResource = policy.getTargetResource();
+        var targetAction = policy.getTargetAction();
 
             if ("*".equals(targetResource)) {
                 // Global policy — applies to all resources
                 globalPolicies.set(bitIdx);
             } else if (targetResource.endsWith(":*")) {
                 // Prefix wildcard: "orders:*" → prefix "orders:"
-                String prefix = targetResource.substring(0, targetResource.length() - 1);
+        var prefix = targetResource.substring(0, targetResource.length() - 1);
                 WildcardEntry entry = findOrCreateWildcard(wildcardPatterns, prefix, targetAction);
-                entry.getPolicyBits().set(bitIdx);
+                entry.policyBits().set(bitIdx);
             } else {
                 // Exact match: "orders:READ" or "orders:*"
-                String key = targetResource + ":" + targetAction;
+        var key = targetResource + ":" + targetAction;
                 exactTargetMap.computeIfAbsent(key, k -> new BitSet()).set(bitIdx);
 
                 // Also index under resource:* if action is wildcard
@@ -87,9 +88,9 @@ public class BitmapBuilderService {
         }
 
         // Sort wildcard patterns by prefix length (longer = more specific first)
-        wildcardPatterns.sort((a, b) -> Integer.compare(b.getPrefix().length(), a.getPrefix().length()));
+        wildcardPatterns.sort((a, b) -> Integer.compare(b.prefix().length(), a.prefix().length()));
 
-        double buildTimeMs = (System.nanoTime() - start) / 1_000_000.0;
+        var buildTimeMs = (System.nanoTime() - start) / 1_000_000.0;
         log.info("PolicyApplicabilityBitmap built for tenant {} in {}ms: {} policies, {} exact targets, {} wildcards",
                 tenantId, String.format("%.2f", buildTimeMs),
                 allPolicies.size(), exactTargetMap.size(), wildcardPatterns.size());
@@ -112,10 +113,10 @@ public class BitmapBuilderService {
      * @param tenantId tenant identifier
      * @return pre-computed routing table (1 DB call)
      */
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public ContextRoutingBitmap buildContextRoutingBitmap(String tenantId) {
         log.debug("Building ContextRoutingBitmap for tenant: {}", tenantId);
-        long start = System.nanoTime();
+        var start = System.nanoTime();
 
         List<AuthorizationContext> contexts = contextRepository.findActiveContextsWithRules(tenantId);
 
@@ -127,19 +128,19 @@ public class BitmapBuilderService {
             CombiningStrategy strategy = ctx.getCombiningStrategy() != null
                     ? ctx.getCombiningStrategy()
                     : CombiningStrategy.AND;
-            AuthorizationMode mode = ctx.getMode() != null
+        var mode = ctx.getMode() != null
                     ? ctx.getMode()
                     : AuthorizationMode.HYBRID;
 
             ContextConfig config = new ContextConfig(strategy, mode);
-            String pattern = ctx.getResourcePattern();
+        var pattern = ctx.getResourcePattern();
 
             if ("*".equals(pattern)) {
                 // Global default — only if higher priority than existing default
                 defaultConfig = config;
             } else if (pattern.endsWith(":*")) {
                 // Prefix pattern: "orders:*" → prefix "orders:"
-                String prefix = pattern.substring(0, pattern.length() - 1);
+        var prefix = pattern.substring(0, pattern.length() - 1);
                 prefixPatterns.add(PrefixEntry.builder()
                         .prefix(prefix)
                         .priority(ctx.getPriority())
@@ -152,12 +153,12 @@ public class BitmapBuilderService {
         }
 
         // Sort prefix patterns: lower priority number = higher precedence
-        prefixPatterns.sort(Comparator.comparingInt(PrefixEntry::getPriority));
+        prefixPatterns.sort(Comparator.comparingInt(PrefixEntry::priority));
 
-        double buildTimeMs = (System.nanoTime() - start) / 1_000_000.0;
+        var buildTimeMs = (System.nanoTime() - start) / 1_000_000.0;
         log.info("ContextRoutingBitmap built for tenant {} in {}ms: {} exact, {} prefix, default={}",
                 tenantId, String.format("%.2f", buildTimeMs),
-                exactMatches.size(), prefixPatterns.size(), defaultConfig.getStrategy());
+                exactMatches.size(), prefixPatterns.size(), defaultConfig.strategy());
 
         return ContextRoutingBitmap.builder()
                 .tenantId(tenantId)
@@ -171,7 +172,7 @@ public class BitmapBuilderService {
 
     private WildcardEntry findOrCreateWildcard(List<WildcardEntry> patterns, String prefix, String action) {
         for (WildcardEntry entry : patterns) {
-            if (entry.getPrefix().equals(prefix) && entry.getAction().equals(action)) {
+            if (entry.prefix().equals(prefix) && entry.action().equals(action)) {
                 return entry;
             }
         }

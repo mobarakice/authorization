@@ -1,12 +1,13 @@
 package com.pss.authorization.domain.dto;
 
 import com.pss.authorization.domain.model.abac.Policy;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Pre-computed bitmap mapping resource:action pairs to applicable ABAC
@@ -22,42 +23,25 @@ import java.util.*;
  * Stored per-tenant in the two-level cache.
  * </p>
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-public class PolicyApplicabilityBitmap {
-
-    private String tenantId;
-
-    /**
-     * All active policies indexed by bitIndex for O(1) retrieval.
-     * policyIndex[bitIndex] = Policy
-     */
-    @Builder.Default
-    private List<Policy> policyIndex = new ArrayList<>();
-
-    /**
-     * Exact resource:action → BitSet of applicable policy bitIndexes.
-     */
-    @Builder.Default
-    private Map<String, BitSet> exactTargetMap = new HashMap<>();
-
-    /**
-     * Wildcard resource patterns (e.g., "orders:*") mapped to their BitSets.
-     * Sorted by specificity (longer prefix first).
-     */
-    @Builder.Default
-    private List<WildcardEntry> wildcardPatterns = new ArrayList<>();
-
-    /**
-     * Policies that apply to all resources ("*:*" or "*:action").
-     */
-    @Builder.Default
-    private BitSet globalPolicies = new BitSet();
-
-    private long version;
-    private long computedAt;
+public record PolicyApplicabilityBitmap(
+        String tenantId,
+        List<Policy> policyIndex,
+        Map<String, BitSet> exactTargetMap,
+        List<WildcardEntry> wildcardPatterns,
+        BitSet globalPolicies,
+        long version,
+        long computedAt) {
+    public PolicyApplicabilityBitmap {
+        if (policyIndex == null)
+            policyIndex = new ArrayList<>();
+        if (exactTargetMap == null)
+            exactTargetMap = new HashMap<>();
+        if (wildcardPatterns == null)
+            wildcardPatterns = new ArrayList<>();
+        if (globalPolicies == null)
+            globalPolicies = new BitSet();
+    }
 
     /**
      * O(1) lookup for applicable policies given a resource:action pair.
@@ -66,14 +50,14 @@ public class PolicyApplicabilityBitmap {
         BitSet combined = new BitSet();
 
         // 1. Exact match: "resource:action"
-        String exactKey = resource + ":" + action;
+        var exactKey = resource + ":" + action;
         BitSet exact = exactTargetMap.get(exactKey);
         if (exact != null) {
             combined.or(exact);
         }
 
         // 2. Resource-wildcard match: "resource:*"
-        String resourceWild = resource + ":*";
+        var resourceWild = resource + ":*";
         BitSet resWild = exactTargetMap.get(resourceWild);
         if (resWild != null) {
             combined.or(resWild);
@@ -82,9 +66,9 @@ public class PolicyApplicabilityBitmap {
         // 3. Prefix wildcard patterns (e.g., policy targets "orders:*" and resource is
         // "orders:123")
         for (WildcardEntry entry : wildcardPatterns) {
-            if (resource.startsWith(entry.prefix)) {
-                if ("*".equals(entry.action) || entry.action.equals(action)) {
-                    combined.or(entry.policyBits);
+            if (resource.startsWith(entry.prefix())) {
+                if ("*".equals(entry.action()) || entry.action().equals(action)) {
+                    combined.or(entry.policyBits());
                 }
             }
         }
@@ -111,19 +95,19 @@ public class PolicyApplicabilityBitmap {
      * Faster than getApplicablePolicies() when you only need a boolean check.
      */
     public boolean hasApplicablePolicies(String resource, String action) {
-        String exactKey = resource + ":" + action;
+        var exactKey = resource + ":" + action;
         BitSet exact = exactTargetMap.get(exactKey);
         if (exact != null && !exact.isEmpty())
             return true;
 
-        String resourceWild = resource + ":*";
+        var resourceWild = resource + ":*";
         BitSet resWild = exactTargetMap.get(resourceWild);
         if (resWild != null && !resWild.isEmpty())
             return true;
 
         for (WildcardEntry entry : wildcardPatterns) {
-            if (resource.startsWith(entry.prefix) &&
-                    ("*".equals(entry.action) || entry.action.equals(action))) {
+            if (resource.startsWith(entry.prefix()) &&
+                    ("*".equals(entry.action()) || entry.action().equals(action))) {
                 return true;
             }
         }
@@ -135,13 +119,7 @@ public class PolicyApplicabilityBitmap {
      * Entry for prefix-based wildcard matching.
      * E.g., a policy targeting "orders:*" becomes prefix="orders:" action="*".
      */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     @Builder
-    public static class WildcardEntry {
-        private String prefix;
-        private String action;
-        private BitSet policyBits;
+    public record WildcardEntry(String prefix, String action, BitSet policyBits) {
     }
 }

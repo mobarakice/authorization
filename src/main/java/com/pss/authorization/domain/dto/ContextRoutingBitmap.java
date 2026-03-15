@@ -2,12 +2,11 @@ package com.pss.authorization.domain.dto;
 
 import com.pss.authorization.domain.model.hybrid.AuthorizationMode;
 import com.pss.authorization.domain.model.hybrid.CombiningStrategy;
-import lombok.AllArgsConstructor;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.util.*;
 
 /**
  * Pre-computed routing table mapping resources to their authorization context
@@ -28,36 +27,23 @@ import java.util.*;
  * Stored per-tenant in the two-level cache.
  * </p>
  */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-public class ContextRoutingBitmap {
-
-    private String tenantId;
-
-    /**
-     * Exact resource → context config (highest priority wins).
-     */
-    @Builder.Default
-    private Map<String, ContextConfig> exactMatches = new HashMap<>();
-
-    /**
-     * Prefix patterns sorted by priority (lower = higher precedence).
-     * E.g., "orders:" prefix matches "orders:123".
-     */
-    @Builder.Default
-    private List<PrefixEntry> prefixPatterns = new ArrayList<>();
-
-    /**
-     * Default config when no context matches.
-     */
-    @Builder.Default
-    private ContextConfig defaultConfig = new ContextConfig(
-            CombiningStrategy.AND, AuthorizationMode.HYBRID);
-
-    private long version;
-    private long computedAt;
+public record ContextRoutingBitmap(
+        String tenantId,
+        Map<String, ContextConfig> exactMatches,
+        List<PrefixEntry> prefixPatterns,
+        ContextConfig defaultConfig,
+        long version,
+        long computedAt) {
+    public ContextRoutingBitmap {
+        if (exactMatches == null)
+            exactMatches = new HashMap<>();
+        if (prefixPatterns == null)
+            prefixPatterns = new ArrayList<>();
+        if (defaultConfig == null)
+            defaultConfig = new ContextConfig(
+                    CombiningStrategy.AND, AuthorizationMode.HYBRID);
+    }
 
     /**
      * Resolves the authorization context config for a resource.
@@ -72,8 +58,8 @@ public class ContextRoutingBitmap {
 
         // 2. Prefix match — scan sorted patterns (most specific first)
         for (PrefixEntry entry : prefixPatterns) {
-            if (resource.startsWith(entry.prefix)) {
-                return entry.config;
+            if (resource.startsWith(entry.prefix())) {
+                return entry.config();
             }
         }
 
@@ -84,25 +70,14 @@ public class ContextRoutingBitmap {
     /**
      * Configuration for an authorization context.
      */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     @Builder
-    public static class ContextConfig {
-        private CombiningStrategy strategy;
-        private AuthorizationMode mode;
+    public record ContextConfig(CombiningStrategy strategy, AuthorizationMode mode) {
     }
 
     /**
      * Entry for prefix-based wildcard matching, sorted by priority.
      */
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     @Builder
-    public static class PrefixEntry {
-        private String prefix;
-        private int priority;
-        private ContextConfig config;
+    public record PrefixEntry(String prefix, int priority, ContextConfig config) {
     }
 }

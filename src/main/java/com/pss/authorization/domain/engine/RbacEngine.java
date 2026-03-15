@@ -47,20 +47,20 @@ public class RbacEngine implements AuthorizationEngine {
 
     @Override
     public boolean canHandle(AuthorizationRequest request) {
-        return request.getTenantId() != null &&
-                (request.getSubjectId() != null || request.getExternalSubjectId() != null);
+        return request.tenantId() != null &&
+                (request.subjectId() != null || request.externalSubjectId() != null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public AuthorizationResponse evaluate(AuthorizationRequest request) {
-        long startTime = System.nanoTime();
+        var startTime = System.nanoTime();
 
         try {
-            String tenantId = request.getTenantId();
-            String externalSubjectId = request.getExternalSubjectId();
-            String resource = request.getResource();
-            String action = request.getAction();
+        var tenantId = request.tenantId();
+        var externalSubjectId = request.externalSubjectId();
+        var resource = request.resource();
+        var action = request.action();
 
             // Step 1: Try to get permission bitmap from cache
             Optional<PermissionBitmap> cachedBitmap = cacheManager.getPermissionBitmap(
@@ -68,7 +68,7 @@ public class RbacEngine implements AuthorizationEngine {
                     UUID.nameUUIDFromBytes((tenantId + ":" + externalSubjectId).getBytes(StandardCharsets.UTF_8)));
 
             PermissionBitmap bitmap;
-            boolean cached = cachedBitmap.isPresent();
+        var cached = cachedBitmap.isPresent();
 
             if (cached) {
                 bitmap = cachedBitmap.get();
@@ -80,7 +80,7 @@ public class RbacEngine implements AuthorizationEngine {
                 }
 
                 // Store in cache for future requests
-                cacheManager.putPermissionBitmap(tenantId, bitmap.getSubjectId(), bitmap);
+                cacheManager.putPermissionBitmap(tenantId, bitmap.subjectId(), bitmap);
             }
 
             // Step 3: Find permission bit index for resource:action (cached)
@@ -101,7 +101,7 @@ public class RbacEngine implements AuthorizationEngine {
             }
 
             // Step 4: O(1) bitmap check
-            boolean hasPermission = bitmap.hasPermission(bitIndex);
+        var hasPermission = bitmap.hasPermission(bitIndex);
 
             if (hasPermission) {
                 return buildResponse(Decision.PERMIT,
@@ -137,10 +137,9 @@ public class RbacEngine implements AuthorizationEngine {
         // Collect all permissions directly from eagerly-fetched roles
         // (findByExternalIdWithRolesAndPermissions already JOIN FETCHes roles +
         // permissions)
-        Set<Permission> allPermissions = new HashSet<>();
-        for (Role role : subject.getRoles()) {
-            allPermissions.addAll(role.getAllPermissions());
-        }
+        Set<Permission> allPermissions = subject.getRoles().stream()
+                .flatMap(role -> role.getAllPermissions().stream())
+                .collect(Collectors.toSet());
 
         Set<UUID> roleIds = subject.getRoles().stream()
                 .map(Role::getId)
@@ -148,9 +147,7 @@ public class RbacEngine implements AuthorizationEngine {
 
         // Build bitmap
         BitSet permissionBits = new BitSet();
-        for (Permission permission : allPermissions) {
-            permissionBits.set(permission.getBitIndex());
-        }
+        allPermissions.forEach(permission -> permissionBits.set(permission.getBitIndex()));
 
         return PermissionBitmap.builder()
                 .subjectId(subject.getId())
@@ -172,7 +169,7 @@ public class RbacEngine implements AuthorizationEngine {
             boolean cached,
             String cacheLevel) {
 
-        double evaluationTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000.0;
+        var evaluationTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000.0;
 
         return AuthorizationResponse.builder()
                 .decision(decision)

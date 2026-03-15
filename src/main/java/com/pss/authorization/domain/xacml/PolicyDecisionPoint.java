@@ -43,36 +43,36 @@ public class PolicyDecisionPoint {
      * @return The authorization decision
      */
     public AuthorizationResponse evaluate(AuthorizationRequest request) {
-        long startTime = System.nanoTime();
+        var startTime = System.nanoTime();
 
         // Add correlation ID if not present
-        if (request.getCorrelationId() == null) {
-            request.setCorrelationId(UUID.randomUUID().toString());
+        if (request.correlationId() == null) {
+            request = request.toBuilder().correlationId(UUID.randomUUID().toString()).build();
         }
 
         log.debug("PDP evaluating request: subject={}, resource={}, action={}, correlationId={}",
-                request.getExternalSubjectId(),
-                request.getResource(),
-                request.getAction(),
-                request.getCorrelationId());
+                request.externalSubjectId(),
+                request.resource(),
+                request.action(),
+                request.correlationId());
 
-        AuthorizationResponse response = doEvaluate(request);
+        var response = doEvaluate(request);
 
         // Set correlation ID in response
-        response.setCorrelationId(request.getCorrelationId());
+        response = response.toBuilder().correlationId(request.correlationId()).build();
 
-        double totalTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
+        var totalTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
 
         log.debug("PDP decision: {} in {}ms (correlationId={})",
-                response.getDecision(),
+                response.decision(),
                 String.format("%.2f", totalTimeMs),
-                request.getCorrelationId());
+                request.correlationId());
 
         // Warn if exceeding target latency
         if (totalTimeMs > 5.0) {
             log.warn("Authorization check exceeded 5ms target: {}ms (correlationId={})",
                     String.format("%.2f", totalTimeMs),
-                    request.getCorrelationId());
+                    request.correlationId());
         }
 
         return response;
@@ -99,7 +99,7 @@ public class PolicyDecisionPoint {
      * Quick check if access is permitted with minimal parameters.
      */
     public boolean isPermitted(String tenantId, String subjectId, String resource, String action) {
-        AuthorizationRequest request = AuthorizationRequest.builder()
+        var request = AuthorizationRequest.builder()
                 .tenantId(tenantId)
                 .externalSubjectId(subjectId)
                 .resource(resource)
@@ -110,7 +110,7 @@ public class PolicyDecisionPoint {
 
     private AuthorizationResponse doEvaluate(AuthorizationRequest request) {
         // Determine authorization mode
-        AuthorizationMode mode = determineMode(request);
+        var mode = determineMode(request);
 
         return switch (mode) {
             case RBAC -> rbacEngine.evaluate(request);
@@ -125,8 +125,8 @@ public class PolicyDecisionPoint {
     private AuthorizationMode determineMode(AuthorizationRequest request) {
         // Check if resource has specific configuration
         List<AuthorizationContext> contexts = contextRepository.findMatchingContexts(
-                request.getTenantId(),
-                request.getResource());
+                request.tenantId(),
+                request.resource());
 
         if (!contexts.isEmpty()) {
             return contexts.get(0).getMode();
@@ -142,8 +142,8 @@ public class PolicyDecisionPoint {
     }
 
     private boolean hasAttributes(AuthorizationRequest request) {
-        return (request.getSubjectAttributes() != null && !request.getSubjectAttributes().isEmpty())
-                || (request.getResourceAttributes() != null && !request.getResourceAttributes().isEmpty())
-                || (request.getEnvironmentAttributes() != null && !request.getEnvironmentAttributes().isEmpty());
+        return (request.subjectAttributes() != null && !request.subjectAttributes().isEmpty())
+                || (request.resourceAttributes() != null && !request.resourceAttributes().isEmpty())
+                || (request.environmentAttributes() != null && !request.environmentAttributes().isEmpty());
     }
 }

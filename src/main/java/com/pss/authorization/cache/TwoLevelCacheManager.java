@@ -39,10 +39,10 @@ public class TwoLevelCacheManager {
      * O(1) lookup time target: < 0.5ms
      */
     public Optional<PermissionBitmap> getPermissionBitmap(String tenantId, UUID subjectId) {
-        String key = buildKey(tenantId, subjectId.toString());
+        var key = buildKey(tenantId, subjectId.toString());
 
         // L1 lookup
-        PermissionBitmap bitmap = getFromL1(CacheConfiguration.PERMISSION_BITMAP, key, PermissionBitmap.class);
+        var bitmap = getFromL1(CacheConfiguration.PERMISSION_BITMAP, key, PermissionBitmap.class);
         if (bitmap != null) {
             log.trace("L1 cache hit for permission bitmap: {}", key);
             return Optional.of(bitmap);
@@ -64,7 +64,7 @@ public class TwoLevelCacheManager {
      * Stores permission bitmap in both cache levels.
      */
     public void putPermissionBitmap(String tenantId, UUID subjectId, PermissionBitmap bitmap) {
-        String key = buildKey(tenantId, subjectId.toString());
+        var key = buildKey(tenantId, subjectId.toString());
         putToL1(CacheConfiguration.PERMISSION_BITMAP, key, bitmap);
         putToL2(CacheConfiguration.PERMISSION_BITMAP, key, bitmap);
     }
@@ -73,7 +73,7 @@ public class TwoLevelCacheManager {
      * Gets subject roles from cache.
      */
     public Optional<Set<UUID>> getSubjectRoles(String tenantId, String externalSubjectId) {
-        String key = buildKey(tenantId, externalSubjectId);
+        var key = buildKey(tenantId, externalSubjectId);
 
         @SuppressWarnings("unchecked")
         Set<UUID> roles = getFromL1(CacheConfiguration.SUBJECT_ROLES, key, Set.class);
@@ -94,7 +94,7 @@ public class TwoLevelCacheManager {
      * Stores subject roles in cache.
      */
     public void putSubjectRoles(String tenantId, String externalSubjectId, Set<UUID> roleIds) {
-        String key = buildKey(tenantId, externalSubjectId);
+        var key = buildKey(tenantId, externalSubjectId);
         putToL1(CacheConfiguration.SUBJECT_ROLES, key, roleIds);
         putToL2(CacheConfiguration.SUBJECT_ROLES, key, roleIds);
     }
@@ -103,7 +103,7 @@ public class TwoLevelCacheManager {
      * Gets applicable policies from cache.
      */
     public Optional<List<Policy>> getPoliciesByTarget(String tenantId, String resource, String action) {
-        String key = buildKey(tenantId, resource, action);
+        var key = buildKey(tenantId, resource, action);
 
         @SuppressWarnings("unchecked")
         List<Policy> policies = getFromL1(CacheConfiguration.POLICY_BY_TARGET, key, List.class);
@@ -124,7 +124,7 @@ public class TwoLevelCacheManager {
      * Stores policies by target in cache.
      */
     public void putPoliciesByTarget(String tenantId, String resource, String action, List<Policy> policies) {
-        String key = buildKey(tenantId, resource, action);
+        var key = buildKey(tenantId, resource, action);
         putToL1(CacheConfiguration.POLICY_BY_TARGET, key, policies);
         putToL2(CacheConfiguration.POLICY_BY_TARGET, key, policies);
     }
@@ -134,7 +134,7 @@ public class TwoLevelCacheManager {
      * evaluate()).
      */
     public Optional<Integer> getPermissionBitIndex(String tenantId, String resource, String action) {
-        String key = buildKey(tenantId, resource, action);
+        var key = buildKey(tenantId, resource, action);
 
         Integer bitIndex = getFromL1(CacheConfiguration.PERMISSION_LOOKUP, key, Integer.class);
         if (bitIndex != null) {
@@ -154,7 +154,7 @@ public class TwoLevelCacheManager {
      * Stores permission bit-index in both cache levels.
      */
     public void putPermissionBitIndex(String tenantId, String resource, String action, int bitIndex) {
-        String key = buildKey(tenantId, resource, action);
+        var key = buildKey(tenantId, resource, action);
         putToL1(CacheConfiguration.PERMISSION_LOOKUP, key, bitIndex);
         putToL2(CacheConfiguration.PERMISSION_LOOKUP, key, bitIndex);
     }
@@ -163,7 +163,7 @@ public class TwoLevelCacheManager {
      * Gets authorization context from cache.
      */
     public Optional<AuthorizationContext> getAuthorizationContext(String tenantId, String resource) {
-        String key = buildKey(tenantId, resource);
+        var key = buildKey(tenantId, resource);
 
         AuthorizationContext context = getFromL1(CacheConfiguration.AUTHORIZATION_CONTEXT, key,
                 AuthorizationContext.class);
@@ -184,7 +184,7 @@ public class TwoLevelCacheManager {
      * Stores authorization context in both cache levels.
      */
     public void putAuthorizationContext(String tenantId, String resource, AuthorizationContext context) {
-        String key = buildKey(tenantId, resource);
+        var key = buildKey(tenantId, resource);
         putToL1(CacheConfiguration.AUTHORIZATION_CONTEXT, key, context);
         putToL2(CacheConfiguration.AUTHORIZATION_CONTEXT, key, context);
     }
@@ -193,9 +193,9 @@ public class TwoLevelCacheManager {
      * Gets PolicyApplicabilityBitmap from cache.
      */
     public Optional<PolicyApplicabilityBitmap> getPolicyApplicabilityBitmap(String tenantId) {
-        String key = tenantId;
+        var key = tenantId;
 
-        PolicyApplicabilityBitmap bitmap = getFromL1(
+        var bitmap = getFromL1(
                 CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, PolicyApplicabilityBitmap.class);
         if (bitmap != null) {
             return Optional.of(bitmap);
@@ -215,7 +215,7 @@ public class TwoLevelCacheManager {
      * Stores PolicyApplicabilityBitmap in both cache levels.
      */
     public void putPolicyApplicabilityBitmap(String tenantId, PolicyApplicabilityBitmap bitmap) {
-        String key = tenantId;
+        var key = tenantId;
         putToL1(CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, bitmap);
         putToL2(CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, bitmap);
     }
@@ -224,9 +224,9 @@ public class TwoLevelCacheManager {
      * Gets ContextRoutingBitmap from cache.
      */
     public Optional<ContextRoutingBitmap> getContextRoutingBitmap(String tenantId) {
-        String key = tenantId;
+        var key = tenantId;
 
-        ContextRoutingBitmap bitmap = getFromL1(
+        var bitmap = getFromL1(
                 CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, ContextRoutingBitmap.class);
         if (bitmap != null) {
             return Optional.of(bitmap);
@@ -246,7 +246,7 @@ public class TwoLevelCacheManager {
      * Stores ContextRoutingBitmap in both cache levels.
      */
     public void putContextRoutingBitmap(String tenantId, ContextRoutingBitmap bitmap) {
-        String key = tenantId;
+        var key = tenantId;
         putToL1(CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, bitmap);
         putToL2(CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, bitmap);
     }
@@ -276,7 +276,7 @@ public class TwoLevelCacheManager {
      * Invalidates caches for a specific subject.
      */
     public void invalidateSubject(String tenantId, String externalSubjectId) {
-        String key = buildKey(tenantId, externalSubjectId);
+        var key = buildKey(tenantId, externalSubjectId);
         evictFromBoth(CacheConfiguration.SUBJECT_ROLES, key);
         evictFromBoth(CacheConfiguration.PERMISSION_BITMAP, key);
         evictFromBoth(CacheConfiguration.SUBJECT_PERMISSIONS, key);

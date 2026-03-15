@@ -92,7 +92,7 @@ class HybridEngineTest {
 
         AuthorizationResponse response = hybridEngine.evaluate(request);
 
-        assertThat(response.getDecision()).isEqualTo(Decision.DENY);
+        assertThat(response.decision()).isEqualTo(Decision.DENY);
         verifyNoInteractions(abacEngine);
     }
 
@@ -102,7 +102,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role grants"));
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     @Test
@@ -111,7 +111,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role grants"));
         when(abacEngine.evaluate(request)).thenReturn(deny("abac blocks"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
     }
 
     @Test
@@ -119,7 +119,7 @@ class HybridEngineTest {
         withStrategy(CombiningStrategy.RBAC_FIRST);
         when(rbacEngine.evaluate(request)).thenReturn(notApplicable());
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.NOT_APPLICABLE);
         verifyNoInteractions(abacEngine);
     }
 
@@ -132,7 +132,7 @@ class HybridEngineTest {
 
         AuthorizationResponse response = hybridEngine.evaluate(request);
 
-        assertThat(response.getDecision()).isEqualTo(Decision.DENY);
+        assertThat(response.decision()).isEqualTo(Decision.DENY);
         verifyNoInteractions(rbacEngine);
     }
 
@@ -142,7 +142,7 @@ class HybridEngineTest {
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     @Test
@@ -151,7 +151,7 @@ class HybridEngineTest {
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
         when(rbacEngine.evaluate(request)).thenReturn(deny("no role"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
     }
 
     @Test
@@ -160,7 +160,7 @@ class HybridEngineTest {
         when(abacEngine.evaluate(request)).thenReturn(notApplicable());
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         verify(rbacEngine).evaluate(request);
     }
 
@@ -172,7 +172,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     @Test
@@ -181,7 +181,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(deny("no role"));
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
     }
 
     @Test
@@ -190,7 +190,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
         when(abacEngine.evaluate(request)).thenReturn(deny("abac blocks"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
     }
 
     @Test
@@ -200,7 +200,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
         when(abacEngine.evaluate(request)).thenReturn(notApplicable());
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     @Test
@@ -210,7 +210,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(notApplicable());
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
     }
 
     // --- OR strategy ---
@@ -220,7 +220,7 @@ class HybridEngineTest {
         withStrategy(CombiningStrategy.OR);
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         verifyNoInteractions(abacEngine);
     }
 
@@ -230,7 +230,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(deny("no role"));
         when(abacEngine.evaluate(request)).thenReturn(permit("extra perm"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     @Test
@@ -239,7 +239,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(deny("no role"));
         when(abacEngine.evaluate(request)).thenReturn(deny("abac blocks"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
     }
 
     @Test
@@ -248,7 +248,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(notApplicable());
         when(abacEngine.evaluate(request)).thenReturn(notApplicable());
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.NOT_APPLICABLE);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.NOT_APPLICABLE);
     }
 
     // --- RBAC_REQUIRED_ABAC_CONSTRAINS strategy ---
@@ -258,7 +258,7 @@ class HybridEngineTest {
         withStrategy(CombiningStrategy.RBAC_REQUIRED_ABAC_CONSTRAINS);
         when(rbacEngine.evaluate(request)).thenReturn(deny("no role"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
         verifyNoInteractions(abacEngine);
     }
 
@@ -268,7 +268,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     @Test
@@ -277,7 +277,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
         when(abacEngine.evaluate(request)).thenReturn(deny("abac constrains"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
     }
 
     @Test
@@ -286,7 +286,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
         when(abacEngine.evaluate(request)).thenReturn(notApplicable());
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     // --- ABAC_PRIMARY_RBAC_FALLBACK strategy ---
@@ -296,7 +296,7 @@ class HybridEngineTest {
         withStrategy(CombiningStrategy.ABAC_PRIMARY_RBAC_FALLBACK);
         when(abacEngine.evaluate(request)).thenReturn(permit("extra perm"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         verifyNoInteractions(rbacEngine);
     }
 
@@ -305,7 +305,7 @@ class HybridEngineTest {
         withStrategy(CombiningStrategy.ABAC_PRIMARY_RBAC_FALLBACK);
         when(abacEngine.evaluate(request)).thenReturn(deny("blocked"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.DENY);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.DENY);
         verifyNoInteractions(rbacEngine);
     }
 
@@ -315,7 +315,7 @@ class HybridEngineTest {
         when(abacEngine.evaluate(request)).thenReturn(notApplicable());
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
 
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         verify(rbacEngine).evaluate(request);
     }
 
@@ -352,7 +352,7 @@ class HybridEngineTest {
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
 
         // OR strategy: RBAC permits → short-circuit, no ABAC call
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
         verifyNoInteractions(abacEngine);
     }
 
@@ -369,7 +369,7 @@ class HybridEngineTest {
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
 
         // AND (default): both called, both permit → PERMIT
-        assertThat(hybridEngine.evaluate(request).getDecision()).isEqualTo(Decision.PERMIT);
+        assertThat(hybridEngine.evaluate(request).decision()).isEqualTo(Decision.PERMIT);
     }
 
     // --- getEngineType ---

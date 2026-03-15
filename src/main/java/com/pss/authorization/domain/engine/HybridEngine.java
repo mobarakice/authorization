@@ -51,7 +51,7 @@ public class HybridEngine implements AuthorizationEngine {
 
     @Override
     public AuthorizationResponse evaluate(AuthorizationRequest request) {
-        long startTime = System.nanoTime();
+        var startTime = System.nanoTime();
         List<EvaluationDetail> details = new ArrayList<>();
 
         try {
@@ -69,12 +69,12 @@ public class HybridEngine implements AuthorizationEngine {
             };
 
             return buildResponse(finalDecision, strategy, details, startTime,
-                    Boolean.TRUE.equals(request.getVerbose()));
+                    Boolean.TRUE.equals(request.verbose()));
 
         } catch (Exception e) {
             log.error("Hybrid evaluation error", e);
             return buildResponse(Decision.INDETERMINATE, null, details, startTime,
-                    Boolean.TRUE.equals(request.getVerbose()));
+                    Boolean.TRUE.equals(request.verbose()));
         }
     }
 
@@ -84,19 +84,19 @@ public class HybridEngine implements AuthorizationEngine {
      */
     private CombiningStrategy getStrategy(AuthorizationRequest request) {
         // Try routing bitmap from cache
-        Optional<ContextRoutingBitmap> cachedRouting = cacheManager.getContextRoutingBitmap(request.getTenantId());
+        Optional<ContextRoutingBitmap> cachedRouting = cacheManager.getContextRoutingBitmap(request.tenantId());
 
         ContextRoutingBitmap routing;
         if (cachedRouting.isPresent()) {
             routing = cachedRouting.get();
         } else {
             // Build routing bitmap (1 DB call for entire tenant)
-            routing = bitmapBuilderService.buildContextRoutingBitmap(request.getTenantId());
-            cacheManager.putContextRoutingBitmap(request.getTenantId(), routing);
+            routing = bitmapBuilderService.buildContextRoutingBitmap(request.tenantId());
+            cacheManager.putContextRoutingBitmap(request.tenantId(), routing);
         }
 
-        ContextRoutingBitmap.ContextConfig config = routing.resolve(request.getResource());
-        return config.getStrategy() != null ? config.getStrategy() : CombiningStrategy.AND;
+        ContextRoutingBitmap.ContextConfig config = routing.resolve(request.resource());
+        return config.strategy() != null ? config.strategy() : CombiningStrategy.AND;
     }
 
     /**
@@ -104,19 +104,19 @@ public class HybridEngine implements AuthorizationEngine {
      */
     private Decision evaluateRbacFirst(AuthorizationRequest request, List<EvaluationDetail> details) {
         // RBAC check
-        AuthorizationResponse rbacResult = rbacEngine.evaluate(request);
+        var rbacResult = rbacEngine.evaluate(request);
         details.add(toDetail("RBAC", rbacResult));
 
-        if (rbacResult.getDecision() == Decision.DENY) {
+        if (rbacResult.decision() == Decision.DENY) {
             return Decision.DENY; // Short-circuit
         }
 
-        if (rbacResult.getDecision() == Decision.PERMIT) {
+        if (rbacResult.decision() == Decision.PERMIT) {
             // ABAC check
-            AuthorizationResponse abacResult = abacEngine.evaluate(request);
+        var abacResult = abacEngine.evaluate(request);
             details.add(toDetail("ABAC", abacResult));
 
-            return abacResult.getDecision() == Decision.DENY ? Decision.DENY : Decision.PERMIT;
+            return abacResult.decision() == Decision.DENY ? Decision.DENY : Decision.PERMIT;
         }
 
         return Decision.NOT_APPLICABLE;
@@ -127,50 +127,50 @@ public class HybridEngine implements AuthorizationEngine {
      */
     private Decision evaluateAbacFirst(AuthorizationRequest request, List<EvaluationDetail> details) {
         // ABAC check
-        AuthorizationResponse abacResult = abacEngine.evaluate(request);
+        var abacResult = abacEngine.evaluate(request);
         details.add(toDetail("ABAC", abacResult));
 
-        if (abacResult.getDecision() == Decision.DENY) {
+        if (abacResult.decision() == Decision.DENY) {
             return Decision.DENY; // Short-circuit
         }
 
-        if (abacResult.getDecision() == Decision.PERMIT) {
+        if (abacResult.decision() == Decision.PERMIT) {
             // RBAC check
-            AuthorizationResponse rbacResult = rbacEngine.evaluate(request);
+        var rbacResult = rbacEngine.evaluate(request);
             details.add(toDetail("RBAC", rbacResult));
 
-            return rbacResult.getDecision() == Decision.DENY ? Decision.DENY : Decision.PERMIT;
+            return rbacResult.decision() == Decision.DENY ? Decision.DENY : Decision.PERMIT;
         }
 
         // ABAC not applicable, fall back to RBAC
-        AuthorizationResponse rbacResult = rbacEngine.evaluate(request);
+        var rbacResult = rbacEngine.evaluate(request);
         details.add(toDetail("RBAC", rbacResult));
-        return rbacResult.getDecision();
+        return rbacResult.decision();
     }
 
     /**
      * AND: Both RBAC and ABAC must permit.
      */
     private Decision evaluateAnd(AuthorizationRequest request, List<EvaluationDetail> details) {
-        AuthorizationResponse rbacResult = rbacEngine.evaluate(request);
+        var rbacResult = rbacEngine.evaluate(request);
         details.add(toDetail("RBAC", rbacResult));
 
-        AuthorizationResponse abacResult = abacEngine.evaluate(request);
+        var abacResult = abacEngine.evaluate(request);
         details.add(toDetail("ABAC", abacResult));
 
-        if (rbacResult.getDecision() == Decision.DENY || abacResult.getDecision() == Decision.DENY) {
+        if (rbacResult.decision() == Decision.DENY || abacResult.decision() == Decision.DENY) {
             return Decision.DENY;
         }
 
-        if (rbacResult.getDecision() == Decision.PERMIT && abacResult.getDecision() == Decision.PERMIT) {
+        if (rbacResult.decision() == Decision.PERMIT && abacResult.decision() == Decision.PERMIT) {
             return Decision.PERMIT;
         }
 
         // Handle NOT_APPLICABLE cases
-        if (rbacResult.getDecision() == Decision.PERMIT && abacResult.getDecision() == Decision.NOT_APPLICABLE) {
+        if (rbacResult.decision() == Decision.PERMIT && abacResult.decision() == Decision.NOT_APPLICABLE) {
             return Decision.PERMIT; // ABAC has no opinion
         }
-        if (abacResult.getDecision() == Decision.PERMIT && rbacResult.getDecision() == Decision.NOT_APPLICABLE) {
+        if (abacResult.decision() == Decision.PERMIT && rbacResult.decision() == Decision.NOT_APPLICABLE) {
             return Decision.DENY; // RBAC required but not granted
         }
 
@@ -181,22 +181,22 @@ public class HybridEngine implements AuthorizationEngine {
      * OR: Either RBAC or ABAC can permit.
      */
     private Decision evaluateOr(AuthorizationRequest request, List<EvaluationDetail> details) {
-        AuthorizationResponse rbacResult = rbacEngine.evaluate(request);
+        var rbacResult = rbacEngine.evaluate(request);
         details.add(toDetail("RBAC", rbacResult));
 
-        if (rbacResult.getDecision() == Decision.PERMIT) {
+        if (rbacResult.decision() == Decision.PERMIT) {
             return Decision.PERMIT; // RBAC permits, done
         }
 
-        AuthorizationResponse abacResult = abacEngine.evaluate(request);
+        var abacResult = abacEngine.evaluate(request);
         details.add(toDetail("ABAC", abacResult));
 
-        if (abacResult.getDecision() == Decision.PERMIT) {
+        if (abacResult.decision() == Decision.PERMIT) {
             return Decision.PERMIT; // ABAC permits
         }
 
         // Neither permits
-        if (rbacResult.getDecision() == Decision.DENY || abacResult.getDecision() == Decision.DENY) {
+        if (rbacResult.decision() == Decision.DENY || abacResult.decision() == Decision.DENY) {
             return Decision.DENY;
         }
 
@@ -207,19 +207,19 @@ public class HybridEngine implements AuthorizationEngine {
      * RBAC_REQUIRED_ABAC_CONSTRAINS: RBAC must permit, ABAC adds constraints.
      */
     private Decision evaluateRbacRequiredAbacConstrains(AuthorizationRequest request, List<EvaluationDetail> details) {
-        AuthorizationResponse rbacResult = rbacEngine.evaluate(request);
+        var rbacResult = rbacEngine.evaluate(request);
         details.add(toDetail("RBAC", rbacResult));
 
-        if (rbacResult.getDecision() != Decision.PERMIT) {
+        if (rbacResult.decision() != Decision.PERMIT) {
             return Decision.DENY; // RBAC required
         }
 
         // RBAC permits, check ABAC constraints
-        AuthorizationResponse abacResult = abacEngine.evaluate(request);
+        var abacResult = abacEngine.evaluate(request);
         details.add(toDetail("ABAC", abacResult));
 
         // ABAC can only deny or not apply (NOT grant additional permissions)
-        if (abacResult.getDecision() == Decision.DENY) {
+        if (abacResult.decision() == Decision.DENY) {
             return Decision.DENY;
         }
 
@@ -230,25 +230,25 @@ public class HybridEngine implements AuthorizationEngine {
      * ABAC_PRIMARY_RBAC_FALLBACK: Use ABAC if policies exist, otherwise RBAC.
      */
     private Decision evaluateAbacPrimaryRbacFallback(AuthorizationRequest request, List<EvaluationDetail> details) {
-        AuthorizationResponse abacResult = abacEngine.evaluate(request);
+        var abacResult = abacEngine.evaluate(request);
         details.add(toDetail("ABAC", abacResult));
 
-        if (abacResult.getDecision() != Decision.NOT_APPLICABLE) {
-            return abacResult.getDecision();
+        if (abacResult.decision() != Decision.NOT_APPLICABLE) {
+            return abacResult.decision();
         }
 
         // No ABAC policies, fallback to RBAC
-        AuthorizationResponse rbacResult = rbacEngine.evaluate(request);
+        var rbacResult = rbacEngine.evaluate(request);
         details.add(toDetail("RBAC", rbacResult));
-        return rbacResult.getDecision();
+        return rbacResult.decision();
     }
 
     private EvaluationDetail toDetail(String evaluator, AuthorizationResponse response) {
         return EvaluationDetail.builder()
                 .evaluator(evaluator)
-                .result(response.getDecision())
-                .reason(response.getReason())
-                .durationMs(response.getEvaluationTimeMs())
+                .result(response.decision())
+                .reason(response.reason())
+                .durationMs(response.evaluationTimeMs())
                 .build();
     }
 
@@ -259,7 +259,7 @@ public class HybridEngine implements AuthorizationEngine {
             long startTimeNanos,
             boolean verbose) {
 
-        double evaluationTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000.0;
+        var evaluationTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000.0;
 
         AuthorizationResponse.AuthorizationResponseBuilder builder = AuthorizationResponse.builder()
                 .decision(decision)

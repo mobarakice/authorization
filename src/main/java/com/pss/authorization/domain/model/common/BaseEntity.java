@@ -14,7 +14,6 @@ import java.time.Instant;
 /**
  * Base entity with audit fields for all domain entities.
  */
-@MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
