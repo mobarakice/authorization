@@ -71,6 +71,13 @@ public class Policy extends TenantAwareEntity {
     @Builder.Default
     private boolean active = true;
 
+    /**
+     * Bit index for policy applicability bitmap optimization.
+     * Each policy gets a unique index per tenant for O(1) lookup.
+     */
+    @Column(name = "bit_index")
+    private Integer bitIndex;
+
     @OneToMany(mappedBy = "policy", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     @Builder.Default

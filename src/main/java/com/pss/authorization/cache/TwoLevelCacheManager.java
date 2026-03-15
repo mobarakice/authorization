@@ -1,6 +1,8 @@
 package com.pss.authorization.cache;
 
+import com.pss.authorization.domain.dto.ContextRoutingBitmap;
 import com.pss.authorization.domain.dto.PermissionBitmap;
+import com.pss.authorization.domain.dto.PolicyApplicabilityBitmap;
 import com.pss.authorization.domain.model.abac.Policy;
 import com.pss.authorization.domain.model.hybrid.AuthorizationContext;
 import com.pss.authorization.domain.model.rbac.Role;
@@ -185,6 +187,68 @@ public class TwoLevelCacheManager {
         String key = buildKey(tenantId, resource);
         putToL1(CacheConfiguration.AUTHORIZATION_CONTEXT, key, context);
         putToL2(CacheConfiguration.AUTHORIZATION_CONTEXT, key, context);
+    }
+
+    /**
+     * Gets PolicyApplicabilityBitmap from cache.
+     */
+    public Optional<PolicyApplicabilityBitmap> getPolicyApplicabilityBitmap(String tenantId) {
+        String key = tenantId;
+
+        PolicyApplicabilityBitmap bitmap = getFromL1(
+                CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, PolicyApplicabilityBitmap.class);
+        if (bitmap != null) {
+            return Optional.of(bitmap);
+        }
+
+        bitmap = getFromL2(
+                CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, PolicyApplicabilityBitmap.class);
+        if (bitmap != null) {
+            putToL1(CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, bitmap);
+            return Optional.of(bitmap);
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Stores PolicyApplicabilityBitmap in both cache levels.
+     */
+    public void putPolicyApplicabilityBitmap(String tenantId, PolicyApplicabilityBitmap bitmap) {
+        String key = tenantId;
+        putToL1(CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, bitmap);
+        putToL2(CacheConfiguration.POLICY_APPLICABILITY_BITMAP, key, bitmap);
+    }
+
+    /**
+     * Gets ContextRoutingBitmap from cache.
+     */
+    public Optional<ContextRoutingBitmap> getContextRoutingBitmap(String tenantId) {
+        String key = tenantId;
+
+        ContextRoutingBitmap bitmap = getFromL1(
+                CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, ContextRoutingBitmap.class);
+        if (bitmap != null) {
+            return Optional.of(bitmap);
+        }
+
+        bitmap = getFromL2(
+                CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, ContextRoutingBitmap.class);
+        if (bitmap != null) {
+            putToL1(CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, bitmap);
+            return Optional.of(bitmap);
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Stores ContextRoutingBitmap in both cache levels.
+     */
+    public void putContextRoutingBitmap(String tenantId, ContextRoutingBitmap bitmap) {
+        String key = tenantId;
+        putToL1(CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, bitmap);
+        putToL2(CacheConfiguration.CONTEXT_ROUTING_BITMAP, key, bitmap);
     }
 
     /**

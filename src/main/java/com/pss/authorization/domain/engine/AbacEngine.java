@@ -4,9 +4,10 @@ import com.pss.authorization.cache.TwoLevelCacheManager;
 import com.pss.authorization.domain.dto.AuthorizationRequest;
 import com.pss.authorization.domain.dto.AuthorizationResponse;
 import com.pss.authorization.domain.dto.AuthorizationResponse.Decision;
+import com.pss.authorization.domain.dto.PolicyApplicabilityBitmap;
 import com.pss.authorization.domain.model.abac.*;
 import com.pss.authorization.domain.model.hybrid.AuthorizationMode;
-import com.pss.authorization.persistence.repository.PolicyRepository;
+import com.pss.authorization.domain.service.BitmapBuilderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -34,7 +35,7 @@ import java.util.regex.Pattern;
 public class AbacEngine implements AuthorizationEngine {
 
     private final TwoLevelCacheManager cacheManager;
-    private final PolicyRepository policyRepository;
+    private final BitmapBuilderService bitmapBuilderService;
 
     // Pre-compiled regex cache
     private final Map<String, Pattern> regexCache = new HashMap<>();
@@ -103,17 +104,23 @@ public class AbacEngine implements AuthorizationEngine {
     }
 
     /**
-     * Gets applicable policies from cache or database.
+     * Gets applicable policies using bitmap-based O(1) lookup.
+     * Falls back to building the bitmap from DB if not cached.
      */
     private List<Policy> getApplicablePolicies(String tenantId, String resource, String action) {
-        Optional<List<Policy>> cached = cacheManager.getPoliciesByTarget(tenantId, resource, action);
-        if (cached.isPresent()) {
-            return cached.get();
+        // Try bitmap from cache
+        Optional<PolicyApplicabilityBitmap> cachedBitmap = cacheManager.getPolicyApplicabilityBitmap(tenantId);
+
+        PolicyApplicabilityBitmap bitmap;
+        if (cachedBitmap.isPresent()) {
+            bitmap = cachedBitmap.get();
+        } else {
+            // Build bitmap (1 DB call for entire tenant)
+            bitmap = bitmapBuilderService.buildPolicyBitmap(tenantId);
+            cacheManager.putPolicyApplicabilityBitmap(tenantId, bitmap);
         }
 
-        List<Policy> policies = policyRepository.findApplicablePolicies(tenantId, resource, action);
-        cacheManager.putPoliciesByTarget(tenantId, resource, action, policies);
-        return policies;
+        return bitmap.getApplicablePolicies(resource, action);
     }
 
     /**

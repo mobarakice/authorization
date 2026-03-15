@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -54,6 +53,8 @@ public class CacheConfiguration {
         public static final String POLICY_BY_TARGET = "policy-by-target";
         public static final String AUTHORIZATION_CONTEXT = "auth-context";
         public static final String ATTRIBUTE_DEFINITIONS = "attribute-definitions";
+        public static final String POLICY_APPLICABILITY_BITMAP = "policy-applicability-bitmap";
+        public static final String CONTEXT_ROUTING_BITMAP = "context-routing-bitmap";
 
         /**
          * Primary L1 cache manager using Caffeine for ultra-low latency.
@@ -124,6 +125,8 @@ public class CacheConfiguration {
                                 POLICIES,
                                 POLICY_BY_TARGET,
                                 AUTHORIZATION_CONTEXT,
-                                ATTRIBUTE_DEFINITIONS);
+                                ATTRIBUTE_DEFINITIONS,
+                                POLICY_APPLICABILITY_BITMAP,
+                                CONTEXT_ROUTING_BITMAP);
         }
 }

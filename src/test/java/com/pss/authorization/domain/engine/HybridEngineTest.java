@@ -4,9 +4,10 @@ import com.pss.authorization.cache.TwoLevelCacheManager;
 import com.pss.authorization.domain.dto.AuthorizationRequest;
 import com.pss.authorization.domain.dto.AuthorizationResponse;
 import com.pss.authorization.domain.dto.AuthorizationResponse.Decision;
-import com.pss.authorization.domain.model.hybrid.AuthorizationContext;
+import com.pss.authorization.domain.dto.ContextRoutingBitmap;
+import com.pss.authorization.domain.model.hybrid.AuthorizationMode;
 import com.pss.authorization.domain.model.hybrid.CombiningStrategy;
-import com.pss.authorization.persistence.repository.AuthorizationContextRepository;
+import com.pss.authorization.domain.service.BitmapBuilderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,9 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,7 +35,7 @@ class HybridEngineTest {
     @Mock
     TwoLevelCacheManager cacheManager;
     @Mock
-    AuthorizationContextRepository contextRepository;
+    BitmapBuilderService bitmapBuilderService;
 
     @InjectMocks
     HybridEngine hybridEngine;
@@ -53,15 +52,20 @@ class HybridEngineTest {
                 .build();
     }
 
-    // --- Context loading helpers ---
+    // --- Context routing helpers ---
 
+    /**
+     * Stubs the ContextRoutingBitmap to return the given strategy for any resource.
+     */
     private void withStrategy(CombiningStrategy strategy) {
-        AuthorizationContext ctx = AuthorizationContext.builder()
-                .id(UUID.randomUUID())
-                .combiningStrategy(strategy)
+        ContextRoutingBitmap routing = ContextRoutingBitmap.builder()
+                .tenantId(TENANT)
+                .defaultConfig(new ContextRoutingBitmap.ContextConfig(strategy, AuthorizationMode.HYBRID))
+                .version(1L)
+                .computedAt(System.currentTimeMillis())
                 .build();
-        when(cacheManager.getAuthorizationContext(TENANT, RESOURCE))
-                .thenReturn(Optional.of(ctx));
+        when(cacheManager.getContextRoutingBitmap(TENANT))
+                .thenReturn(Optional.of(routing));
     }
 
     private AuthorizationResponse permit(String reason) {
@@ -315,32 +319,36 @@ class HybridEngineTest {
         verify(rbacEngine).evaluate(request);
     }
 
-    // --- Strategy from DB context (cache miss path) ---
+    // --- Strategy from bitmap (cache miss path) ---
 
     @Test
-    void getStrategy_cacheMiss_loadsFromDB_cachesContext() {
-        when(cacheManager.getAuthorizationContext(TENANT, RESOURCE)).thenReturn(Optional.empty());
-        AuthorizationContext ctx = AuthorizationContext.builder()
-                .id(UUID.randomUUID())
-                .combiningStrategy(CombiningStrategy.OR)
+    void getStrategy_cacheMiss_buildsBitmapFromDB_cachesIt() {
+        when(cacheManager.getContextRoutingBitmap(TENANT)).thenReturn(Optional.empty());
+        ContextRoutingBitmap routing = ContextRoutingBitmap.builder()
+                .tenantId(TENANT)
+                .defaultConfig(new ContextRoutingBitmap.ContextConfig(CombiningStrategy.OR, AuthorizationMode.HYBRID))
+                .version(1L)
+                .computedAt(System.currentTimeMillis())
                 .build();
-        when(contextRepository.findMatchingContexts(TENANT, RESOURCE)).thenReturn(List.of(ctx));
+        when(bitmapBuilderService.buildContextRoutingBitmap(TENANT)).thenReturn(routing);
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
 
         hybridEngine.evaluate(request);
 
-        // Verify context is cached back after DB fetch
-        verify(cacheManager).putAuthorizationContext(TENANT, RESOURCE, ctx);
+        // Verify bitmap is cached after DB build
+        verify(cacheManager).putContextRoutingBitmap(eq(TENANT), eq(routing));
     }
 
     @Test
-    void getStrategy_cacheMiss_loadsFromDB_usesContextStrategy() {
-        when(cacheManager.getAuthorizationContext(TENANT, RESOURCE)).thenReturn(Optional.empty());
-        AuthorizationContext ctx = AuthorizationContext.builder()
-                .id(UUID.randomUUID())
-                .combiningStrategy(CombiningStrategy.OR)
+    void getStrategy_cacheMiss_buildsBitmapFromDB_usesStrategy() {
+        when(cacheManager.getContextRoutingBitmap(TENANT)).thenReturn(Optional.empty());
+        ContextRoutingBitmap routing = ContextRoutingBitmap.builder()
+                .tenantId(TENANT)
+                .defaultConfig(new ContextRoutingBitmap.ContextConfig(CombiningStrategy.OR, AuthorizationMode.HYBRID))
+                .version(1L)
+                .computedAt(System.currentTimeMillis())
                 .build();
-        when(contextRepository.findMatchingContexts(TENANT, RESOURCE)).thenReturn(List.of(ctx));
+        when(bitmapBuilderService.buildContextRoutingBitmap(TENANT)).thenReturn(routing);
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
 
         // OR strategy: RBAC permits → short-circuit, no ABAC call
@@ -350,8 +358,13 @@ class HybridEngineTest {
 
     @Test
     void getStrategy_noContext_defaultsToAnd() {
-        when(cacheManager.getAuthorizationContext(TENANT, RESOURCE)).thenReturn(Optional.empty());
-        when(contextRepository.findMatchingContexts(TENANT, RESOURCE)).thenReturn(List.of());
+        // Empty routing bitmap → defaults to AND
+        ContextRoutingBitmap routing = ContextRoutingBitmap.builder()
+                .tenantId(TENANT)
+                .version(1L)
+                .computedAt(System.currentTimeMillis())
+                .build();
+        when(cacheManager.getContextRoutingBitmap(TENANT)).thenReturn(Optional.of(routing));
         when(rbacEngine.evaluate(request)).thenReturn(permit("role ok"));
         when(abacEngine.evaluate(request)).thenReturn(permit("abac ok"));
 

@@ -5,10 +5,10 @@ import com.pss.authorization.domain.dto.AuthorizationRequest;
 import com.pss.authorization.domain.dto.AuthorizationResponse;
 import com.pss.authorization.domain.dto.AuthorizationResponse.Decision;
 import com.pss.authorization.domain.dto.AuthorizationResponse.EvaluationDetail;
-import com.pss.authorization.domain.model.hybrid.AuthorizationContext;
+import com.pss.authorization.domain.dto.ContextRoutingBitmap;
 import com.pss.authorization.domain.model.hybrid.AuthorizationMode;
 import com.pss.authorization.domain.model.hybrid.CombiningStrategy;
-import com.pss.authorization.persistence.repository.AuthorizationContextRepository;
+import com.pss.authorization.domain.service.BitmapBuilderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -37,7 +37,7 @@ public class HybridEngine implements AuthorizationEngine {
     private final RbacEngine rbacEngine;
     private final AbacEngine abacEngine;
     private final TwoLevelCacheManager cacheManager;
-    private final AuthorizationContextRepository contextRepository;
+    private final BitmapBuilderService bitmapBuilderService;
 
     @Override
     public String getEngineType() {
@@ -79,33 +79,24 @@ public class HybridEngine implements AuthorizationEngine {
     }
 
     /**
-     * Gets the combining strategy for this request.
-     * Checks authorization context configuration.
+     * Gets the combining strategy for this request using bitmap-based O(1) lookup.
+     * Falls back to building the routing bitmap from DB if not cached.
      */
     private CombiningStrategy getStrategy(AuthorizationRequest request) {
-        Optional<AuthorizationContext> contextOpt = cacheManager.getAuthorizationContext(
-                request.getTenantId(), request.getResource());
+        // Try routing bitmap from cache
+        Optional<ContextRoutingBitmap> cachedRouting = cacheManager.getContextRoutingBitmap(request.getTenantId());
 
-        if (contextOpt.isEmpty()) {
-            // Try loading from DB
-            List<AuthorizationContext> contexts = contextRepository.findMatchingContexts(
-                    request.getTenantId(), request.getResource());
-
-            if (!contexts.isEmpty()) {
-                AuthorizationContext context = contexts.get(0);
-                // Cache for future requests
-                cacheManager.putAuthorizationContext(
-                        request.getTenantId(), request.getResource(), context);
-                return context.getCombiningStrategy() != null
-                        ? context.getCombiningStrategy()
-                        : CombiningStrategy.AND;
-            }
+        ContextRoutingBitmap routing;
+        if (cachedRouting.isPresent()) {
+            routing = cachedRouting.get();
         } else {
-            return contextOpt.get().getCombiningStrategy();
+            // Build routing bitmap (1 DB call for entire tenant)
+            routing = bitmapBuilderService.buildContextRoutingBitmap(request.getTenantId());
+            cacheManager.putContextRoutingBitmap(request.getTenantId(), routing);
         }
 
-        // Default strategy
-        return CombiningStrategy.AND;
+        ContextRoutingBitmap.ContextConfig config = routing.resolve(request.getResource());
+        return config.getStrategy() != null ? config.getStrategy() : CombiningStrategy.AND;
     }
 
     /**
