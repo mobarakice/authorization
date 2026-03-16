@@ -7,13 +7,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Repository for Subject entity.
  */
 @Repository
-public interface SubjectRepository extends JpaRepository<Subject, UUID> {
+public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
     Optional<Subject> findByTenantIdAndExternalId(String tenantId, String externalId);
 
@@ -48,5 +47,5 @@ public interface SubjectRepository extends JpaRepository<Subject, UUID> {
             LEFT JOIN FETCH s.attributes
             WHERE s.id = :id AND s.active = true
             """)
-    Optional<Subject> findByIdFullyLoaded(@Param("id") UUID id);
+    Optional<Subject> findByIdFullyLoaded(@Param("id") Long id);
 }

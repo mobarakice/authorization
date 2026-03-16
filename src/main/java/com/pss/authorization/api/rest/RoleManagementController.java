@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * REST API for Role management.
@@ -36,7 +35,7 @@ public class RoleManagementController {
     @GetMapping("/{id}")
     public ResponseEntity<Role> getRole(
             @Parameter(description = "Tenant identifier", required = true) @RequestHeader("X-Tenant-ID") String tenantId,
-            @Parameter(description = "Role UUID") @PathVariable UUID id) {
+            @Parameter(description = "Role Long") @PathVariable Long id) {
         return roleService.getRole(id, tenantId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -54,7 +53,7 @@ public class RoleManagementController {
     @PutMapping("/{id}")
     public ResponseEntity<Role> updateRole(
             @Parameter(description = "Tenant identifier", required = true) @RequestHeader("X-Tenant-ID") String tenantId,
-            @Parameter(description = "Role UUID") @PathVariable UUID id,
+            @Parameter(description = "Role Long") @PathVariable Long id,
             @Valid @RequestBody Role role) {
         return roleService.updateRole(tenantId, id, role)
                 .map(ResponseEntity::ok)
@@ -65,7 +64,7 @@ public class RoleManagementController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRole(
             @Parameter(description = "Tenant identifier", required = true) @RequestHeader("X-Tenant-ID") String tenantId,
-            @Parameter(description = "Role UUID") @PathVariable UUID id) {
+            @Parameter(description = "Role Long") @PathVariable Long id) {
         return roleService.deleteRole(tenantId, id)
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.notFound().build();

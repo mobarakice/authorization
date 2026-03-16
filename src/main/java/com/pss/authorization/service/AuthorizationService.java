@@ -2,7 +2,6 @@ package com.pss.authorization.service;
 
 import com.pss.authorization.domain.dto.AuthorizationRequest;
 import com.pss.authorization.domain.dto.AuthorizationResponse;
-import com.pss.authorization.domain.model.rbac.SubjectAttribute;
 import com.pss.authorization.domain.dto.SubjectAttributeDto;
 import com.pss.authorization.domain.xacml.PolicyDecisionPoint;
 import com.pss.authorization.cache.TwoLevelCacheManager;

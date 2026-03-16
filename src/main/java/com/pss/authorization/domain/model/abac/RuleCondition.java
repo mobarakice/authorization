@@ -5,7 +5,6 @@ import com.pss.authorization.domain.model.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.UUID;
 
 /**
  * A condition within a policy rule.
@@ -25,7 +24,9 @@ public class RuleCondition extends BaseEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rule_id", nullable = false)
@@ -66,11 +67,4 @@ public class RuleCondition extends BaseEntity {
     @Column(name = "order_index", nullable = false)
     @Builder.Default
     private int orderIndex = 0;
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 }

@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Dynamic attribute assigned to a subject for ABAC evaluation.
@@ -25,7 +24,9 @@ public class SubjectAttribute extends BaseEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subject_id", nullable = false)
@@ -46,13 +47,6 @@ public class SubjectAttribute extends BaseEntity {
 
     @Column(name = "valid_until")
     private Instant validUntil;
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 
     /**
      * Checks if this attribute is currently valid.

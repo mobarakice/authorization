@@ -4,7 +4,6 @@ import lombok.Builder;
 
 import java.util.BitSet;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Pre-computed permission bitmap for O(1) permission checks.
@@ -12,10 +11,10 @@ import java.util.UUID;
  */
 @Builder
 public record PermissionBitmap(
-        UUID subjectId,
+        Long subjectId,
         String tenantId,
         BitSet permissions,
-        Set<UUID> roleIds,
+        Set<Long> roleIds,
         long version,
         long computedAt) {
 

@@ -4,7 +4,6 @@ import com.pss.authorization.domain.model.common.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.UUID;
 
 /**
  * Defines an attribute that can be used in ABAC policies.
@@ -24,7 +23,9 @@ public class AttributeDefinition extends TenantAwareEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @Column(name = "name", nullable = false, length = 128)
     private String name;
@@ -72,11 +73,4 @@ public class AttributeDefinition extends TenantAwareEntity {
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 }

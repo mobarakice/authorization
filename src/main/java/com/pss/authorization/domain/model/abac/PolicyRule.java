@@ -7,7 +7,6 @@ import lombok.*;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * A rule within an ABAC policy.
@@ -26,7 +25,9 @@ public class PolicyRule extends BaseEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "policy_id", nullable = false)
@@ -63,13 +64,6 @@ public class PolicyRule extends BaseEntity {
     @OrderBy("orderIndex ASC")
     @Builder.Default
     private Set<RuleCondition> conditions = new LinkedHashSet<>();
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 
     /**
      * Adds a condition to this rule.

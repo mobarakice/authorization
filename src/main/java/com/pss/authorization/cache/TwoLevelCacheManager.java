@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Two-level cache manager providing ultra-fast authorization data access.
@@ -39,7 +38,7 @@ public class TwoLevelCacheManager {
      * Gets permission bitmap from cache with fallback.
      * O(1) lookup time target: < 0.5ms
      */
-    public Optional<PermissionBitmap> getPermissionBitmap(String tenantId, UUID subjectId) {
+    public Optional<PermissionBitmap> getPermissionBitmap(String tenantId, Long subjectId) {
         var key = buildKey(tenantId, subjectId.toString());
 
         // L1 lookup
@@ -64,7 +63,7 @@ public class TwoLevelCacheManager {
     /**
      * Stores permission bitmap in both cache levels.
      */
-    public void putPermissionBitmap(String tenantId, UUID subjectId, PermissionBitmap bitmap) {
+    public void putPermissionBitmap(String tenantId, Long subjectId, PermissionBitmap bitmap) {
         var key = buildKey(tenantId, subjectId.toString());
         putToL1(CacheConfiguration.PERMISSION_BITMAP, key, bitmap);
         putToL2(CacheConfiguration.PERMISSION_BITMAP, key, bitmap);
@@ -73,11 +72,11 @@ public class TwoLevelCacheManager {
     /**
      * Gets subject roles from cache.
      */
-    public Optional<Set<UUID>> getSubjectRoles(String tenantId, String externalSubjectId) {
+    public Optional<Set<Long>> getSubjectRoles(String tenantId, String externalSubjectId) {
         var key = buildKey(tenantId, externalSubjectId);
 
         @SuppressWarnings("unchecked")
-        Set<UUID> roles = getFromL1(CacheConfiguration.SUBJECT_ROLES, key, Set.class);
+        Set<Long> roles = getFromL1(CacheConfiguration.SUBJECT_ROLES, key, Set.class);
         if (roles != null) {
             return Optional.of(roles);
         }
@@ -94,7 +93,7 @@ public class TwoLevelCacheManager {
     /**
      * Stores subject roles in cache.
      */
-    public void putSubjectRoles(String tenantId, String externalSubjectId, Set<UUID> roleIds) {
+    public void putSubjectRoles(String tenantId, String externalSubjectId, Set<Long> roleIds) {
         var key = buildKey(tenantId, externalSubjectId);
         putToL1(CacheConfiguration.SUBJECT_ROLES, key, roleIds);
         putToL2(CacheConfiguration.SUBJECT_ROLES, key, roleIds);

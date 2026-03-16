@@ -3,7 +3,6 @@ package com.pss.authorization.domain.dto;
 import org.junit.jupiter.api.Test;
 
 import java.util.BitSet;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,7 +12,7 @@ class PermissionBitmapTest {
         BitSet bits = new BitSet();
         for (int b : setBits) bits.set(b);
         return PermissionBitmap.builder()
-                .subjectId(UUID.randomUUID())
+                .subjectId((long)(Math.random() * 10000L))
                 .tenantId("tenant1")
                 .permissions(bits)
                 .version(1L)
@@ -41,7 +40,7 @@ class PermissionBitmapTest {
     @Test
     void hasPermission_nullPermissions_returnsFalse() {
         PermissionBitmap bitmap = PermissionBitmap.builder()
-                .subjectId(UUID.randomUUID())
+                .subjectId((long)(Math.random() * 10000L))
                 .tenantId("t1")
                 .permissions(null)
                 .build();
@@ -73,7 +72,7 @@ class PermissionBitmapTest {
     @Test
     void hasAnyPermission_nullPermissions_returnsFalse() {
         PermissionBitmap bitmap = PermissionBitmap.builder()
-                .subjectId(UUID.randomUUID())
+                .subjectId((long)(Math.random() * 10000L))
                 .tenantId("t1")
                 .permissions(null)
                 .build();
@@ -105,7 +104,7 @@ class PermissionBitmapTest {
     @Test
     void hasAllPermissions_nullPermissions_returnsFalse() {
         PermissionBitmap bitmap = PermissionBitmap.builder()
-                .subjectId(UUID.randomUUID())
+                .subjectId((long)(Math.random() * 10000L))
                 .tenantId("t1")
                 .permissions(null)
                 .build();
@@ -127,7 +126,7 @@ class PermissionBitmapTest {
     @Test
     void permissionCount_nullPermissions_returnsZero() {
         PermissionBitmap bitmap = PermissionBitmap.builder()
-                .subjectId(UUID.randomUUID())
+                .subjectId((long)(Math.random() * 10000L))
                 .tenantId("t1")
                 .permissions(null)
                 .build();

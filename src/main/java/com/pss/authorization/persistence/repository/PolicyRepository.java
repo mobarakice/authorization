@@ -8,13 +8,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Repository for ABAC Policy entity.
  */
 @Repository
-public interface PolicyRepository extends JpaRepository<Policy, UUID> {
+public interface PolicyRepository extends JpaRepository<Policy, Long> {
 
     Optional<Policy> findByTenantIdAndName(String tenantId, String name);
 
@@ -55,5 +54,5 @@ public interface PolicyRepository extends JpaRepository<Policy, UUID> {
             LEFT JOIN FETCH r.conditions
             WHERE p.id = :id
             """)
-    Optional<Policy> findByIdWithRulesAndConditions(@Param("id") UUID id);
+    Optional<Policy> findByIdWithRulesAndConditions(@Param("id") Long id);
 }

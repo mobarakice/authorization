@@ -6,7 +6,6 @@ import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Defines the authorization context for a specific resource or scope.
@@ -26,7 +25,9 @@ public class AuthorizationContext extends TenantAwareEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @Column(name = "name", nullable = false, length = 128)
     private String name;
@@ -64,13 +65,6 @@ public class AuthorizationContext extends TenantAwareEntity {
     @OrderBy("priority ASC")
     @Builder.Default
     private List<ContextRule> rules = new ArrayList<>();
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 
     /**
      * Checks if this context matches the given resource.

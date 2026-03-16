@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +23,7 @@ public class RoleService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Role> getRole(UUID id, String tenantId) {
+    public Optional<Role> getRole(Long id, String tenantId) {
         return roleRepository.findByIdWithPermissionsAndHierarchy(id)
                 .filter(r -> r.getTenantId().equals(tenantId));
     }
@@ -36,7 +35,7 @@ public class RoleService {
     }
 
     @Transactional
-    public Optional<Role> updateRole(String tenantId, UUID id, Role incoming) {
+    public Optional<Role> updateRole(String tenantId, Long id, Role incoming) {
         return roleRepository.findById(id)
                 .filter(r -> r.getTenantId().equals(tenantId))
                 .map(existing -> {
@@ -50,7 +49,7 @@ public class RoleService {
     }
 
     @Transactional
-    public boolean deleteRole(String tenantId, UUID id) {
+    public boolean deleteRole(String tenantId, Long id) {
         return roleRepository.findById(id)
                 .filter(r -> r.getTenantId().equals(tenantId))
                 .filter(r -> !r.isSystemRole())

@@ -8,13 +8,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Repository for AuthorizationContext entity.
  */
 @Repository
-public interface AuthorizationContextRepository extends JpaRepository<AuthorizationContext, UUID> {
+public interface AuthorizationContextRepository extends JpaRepository<AuthorizationContext, Long> {
 
     Optional<AuthorizationContext> findByTenantIdAndName(String tenantId, String name);
 

@@ -17,7 +17,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +43,7 @@ class RbacEngineTest {
         RbacEngine rbacEngine;
 
         private AuthorizationRequest request;
-        private UUID subjectCacheKey;
+        private Long subjectCacheKey;
 
         @BeforeEach
         void setUp() {
@@ -55,8 +54,7 @@ class RbacEngineTest {
                                 .action(ACTION)
                                 .build();
 
-                subjectCacheKey = UUID.nameUUIDFromBytes(
-                                (TENANT + ":" + EXTERNAL_ID).getBytes(StandardCharsets.UTF_8));
+                subjectCacheKey = (long) Math.abs((TENANT + ":" + EXTERNAL_ID).hashCode());
         }
 
         // --- canHandle ---
@@ -105,7 +103,7 @@ class RbacEngineTest {
                 BitSet bits = new BitSet();
                 bits.set(FLIGHT_READ_BIT);
                 PermissionBitmap bitmap = PermissionBitmap.builder()
-                                .subjectId(UUID.randomUUID())
+                                .subjectId((long) (Math.random() * 10000L))
                                 .tenantId(TENANT)
                                 .permissions(bits)
                                 .build();
@@ -128,7 +126,7 @@ class RbacEngineTest {
         void evaluate_cacheHitBitmapMissingBit_returnsDeny() {
                 // bitmap with NO bits set (subject has no permissions matching bit 0)
                 PermissionBitmap bitmap = PermissionBitmap.builder()
-                                .subjectId(UUID.randomUUID())
+                                .subjectId((long) (Math.random() * 10000L))
                                 .tenantId(TENANT)
                                 .permissions(new BitSet())
                                 .build();
@@ -156,17 +154,17 @@ class RbacEngineTest {
                 // Build subject with role carrying permission at bit 0
                 // (findByExternalIdWithRolesAndPermissions eagerly fetches roles + permissions)
                 Permission perm = Permission.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .bitIndex(FLIGHT_READ_BIT)
                                 .build();
-                UUID roleId = UUID.randomUUID();
+                Long roleId = (long) (Math.random() * 10000L);
                 Role role = Role.builder()
                                 .id(roleId)
                                 .permissions(Set.of(perm))
                                 .parentRoles(new HashSet<>())
                                 .build();
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXTERNAL_ID)
                                 .roles(Set.of(role))
                                 .build();
@@ -175,7 +173,7 @@ class RbacEngineTest {
 
                 // Permission definition in DB at bit 0
                 Permission permDef = Permission.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .bitIndex(FLIGHT_READ_BIT)
                                 .build();
                 when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
@@ -185,7 +183,7 @@ class RbacEngineTest {
 
                 assertThat(response.decision()).isEqualTo(Decision.PERMIT);
                 assertThat(response.cached()).isFalse();
-                verify(cacheManager).putPermissionBitmap(eq(TENANT), any(UUID.class), any(PermissionBitmap.class));
+                verify(cacheManager).putPermissionBitmap(eq(TENANT), any(Long.class), any(PermissionBitmap.class));
                 verify(cacheManager).putPermissionBitIndex(TENANT, RESOURCE, ACTION, FLIGHT_READ_BIT);
         }
 
@@ -197,15 +195,15 @@ class RbacEngineTest {
                                 .thenReturn(Optional.empty());
 
                 // Subject with role that has bit 5 (NOT bit 0 = flight:READ)
-                Permission otherPerm = Permission.builder().id(UUID.randomUUID()).bitIndex(5).build();
-                UUID roleId = UUID.randomUUID();
+                Permission otherPerm = Permission.builder().id((long) (Math.random() * 10000L)).bitIndex(5).build();
+                Long roleId = (long) (Math.random() * 10000L);
                 Role role = Role.builder()
                                 .id(roleId)
                                 .permissions(Set.of(otherPerm))
                                 .parentRoles(new HashSet<>())
                                 .build();
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXTERNAL_ID)
                                 .roles(Set.of(role))
                                 .build();
@@ -213,7 +211,8 @@ class RbacEngineTest {
                                 .thenReturn(Optional.of(subject));
 
                 // Permission exists at bit 0 but subject's bitmap doesn't have it
-                Permission permDef = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
+                Permission permDef = Permission.builder().id((long) (Math.random() * 10000L)).bitIndex(FLIGHT_READ_BIT)
+                                .build();
                 when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
                                 .thenReturn(Optional.of(permDef));
 
@@ -247,10 +246,10 @@ class RbacEngineTest {
                 when(cacheManager.getPermissionBitIndex(TENANT, RESOURCE, ACTION))
                                 .thenReturn(Optional.empty());
 
-                UUID roleId = UUID.randomUUID();
+                Long roleId = (long) (Math.random() * 10000L);
                 Role role = Role.builder().id(roleId).permissions(new HashSet<>()).parentRoles(new HashSet<>()).build();
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXTERNAL_ID)
                                 .roles(Set.of(role))
                                 .build();
@@ -277,13 +276,14 @@ class RbacEngineTest {
                                 .thenReturn(Optional.empty());
 
                 // Parent role has the permission; child role inherits it
-                Permission perm = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
+                Permission perm = Permission.builder().id((long) (Math.random() * 10000L)).bitIndex(FLIGHT_READ_BIT)
+                                .build();
                 Role parentRole = Role.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .permissions(Set.of(perm))
                                 .parentRoles(new HashSet<>())
                                 .build();
-                UUID roleId = UUID.randomUUID();
+                Long roleId = (long) (Math.random() * 10000L);
                 Role childRole = Role.builder()
                                 .id(roleId)
                                 .permissions(new HashSet<>())
@@ -291,14 +291,15 @@ class RbacEngineTest {
                                 .build();
                 // Subject carries the child role (eagerly-loaded with parent hierarchy)
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXTERNAL_ID)
                                 .roles(Set.of(childRole))
                                 .build();
                 when(subjectRepository.findByExternalIdWithRolesAndPermissions(TENANT, EXTERNAL_ID))
                                 .thenReturn(Optional.of(subject));
 
-                Permission permDef = Permission.builder().id(UUID.randomUUID()).bitIndex(FLIGHT_READ_BIT).build();
+                Permission permDef = Permission.builder().id((long) (Math.random() * 10000L)).bitIndex(FLIGHT_READ_BIT)
+                                .build();
                 when(permissionRepository.findByResourceAndAction(TENANT, RESOURCE, ACTION))
                                 .thenReturn(Optional.of(permDef));
 
