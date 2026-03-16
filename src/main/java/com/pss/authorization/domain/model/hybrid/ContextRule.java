@@ -7,7 +7,6 @@ import com.pss.authorization.domain.model.rbac.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.UUID;
 
 /**
  * A rule within an authorization context.
@@ -26,7 +25,9 @@ public class ContextRule extends BaseEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "context_id", nullable = false)
@@ -70,13 +71,6 @@ public class ContextRule extends BaseEntity {
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 
     public boolean isRbacRule() {
         return "RBAC".equals(ruleType);

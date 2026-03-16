@@ -49,6 +49,8 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:$caffeineVersion")
     
     // Database
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
     
     // Redis serialization with MessagePack

@@ -9,13 +9,12 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Repository for Role entity with optimized queries for performance.
  */
 @Repository
-public interface RoleRepository extends JpaRepository<Role, UUID> {
+public interface RoleRepository extends JpaRepository<Role, Long> {
 
     Optional<Role> findByTenantIdAndName(String tenantId, String name);
 
@@ -25,10 +24,10 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     List<Role> findSystemRoles(@Param("tenantId") String tenantId);
 
     @Query("SELECT r FROM Role r LEFT JOIN FETCH r.permissions WHERE r.id IN :roleIds")
-    List<Role> findByIdsWithPermissions(@Param("roleIds") Set<UUID> roleIds);
+    List<Role> findByIdsWithPermissions(@Param("roleIds") Set<Long> roleIds);
 
     @Query("SELECT r FROM Role r LEFT JOIN FETCH r.permissions LEFT JOIN FETCH r.parentRoles WHERE r.id = :id")
-    Optional<Role> findByIdWithPermissionsAndHierarchy(@Param("id") UUID id);
+    Optional<Role> findByIdWithPermissionsAndHierarchy(@Param("id") Long id);
 
     @Query("""
             SELECT DISTINCT r FROM Role r

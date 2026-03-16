@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -57,18 +56,18 @@ public class RbacEngine implements AuthorizationEngine {
         var startTime = System.nanoTime();
 
         try {
-        var tenantId = request.tenantId();
-        var externalSubjectId = request.externalSubjectId();
-        var resource = request.resource();
-        var action = request.action();
+            var tenantId = request.tenantId();
+            var externalSubjectId = request.externalSubjectId();
+            var resource = request.resource();
+            var action = request.action();
 
             // Step 1: Try to get permission bitmap from cache
             Optional<PermissionBitmap> cachedBitmap = cacheManager.getPermissionBitmap(
                     tenantId,
-                    UUID.nameUUIDFromBytes((tenantId + ":" + externalSubjectId).getBytes(StandardCharsets.UTF_8)));
+                    (long) Math.abs((tenantId + ":" + externalSubjectId).hashCode()));
 
             PermissionBitmap bitmap;
-        var cached = cachedBitmap.isPresent();
+            var cached = cachedBitmap.isPresent();
 
             if (cached) {
                 bitmap = cachedBitmap.get();
@@ -101,7 +100,7 @@ public class RbacEngine implements AuthorizationEngine {
             }
 
             // Step 4: O(1) bitmap check
-        var hasPermission = bitmap.hasPermission(bitIndex);
+            var hasPermission = bitmap.hasPermission(bitIndex);
 
             if (hasPermission) {
                 return buildResponse(Decision.PERMIT,
@@ -141,7 +140,7 @@ public class RbacEngine implements AuthorizationEngine {
                 .flatMap(role -> role.getAllPermissions().stream())
                 .collect(Collectors.toSet());
 
-        Set<UUID> roleIds = subject.getRoles().stream()
+        Set<Long> roleIds = subject.getRoles().stream()
                 .map(Role::getId)
                 .collect(Collectors.toSet());
 

@@ -6,7 +6,6 @@ import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Represents a role that groups permissions together.
@@ -26,7 +25,9 @@ public class Role extends TenantAwareEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @Column(name = "name", nullable = false, length = 128)
     private String name;
@@ -82,13 +83,6 @@ public class Role extends TenantAwareEntity {
     @ManyToMany(mappedBy = "roles")
     @Builder.Default
     private Set<Subject> subjects = new HashSet<>();
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 
     /**
      * Collects all permissions including inherited ones from parent roles.

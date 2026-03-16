@@ -62,7 +62,7 @@ class AuthorizationServiceTest {
 
         private SubjectAttribute attribute(String name, String value) {
                 return SubjectAttribute.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .attributeName(name)
                                 .attributeValue(value)
                                 .valueType("STRING")
@@ -74,7 +74,7 @@ class AuthorizationServiceTest {
         @Test
         void authorize_enrichesSubjectAttributesFromDB() {
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXT_ID)
                                 .attributes(Set.of(attribute("extra_permissions", "price:BLOCK")))
                                 .build();
@@ -94,7 +94,7 @@ class AuthorizationServiceTest {
         @Test
         void authorize_subjectHasNoAttributes_pdpCalledWithEmptyAttributes() {
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXT_ID)
                                 .attributes(new HashSet<>())
                                 .build();
@@ -154,7 +154,7 @@ class AuthorizationServiceTest {
                 request.subjectAttributes().put("extra_permissions", "caller-value");
 
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXT_ID)
                                 .attributes(Set.of(attribute("extra_permissions", "db-value")))
                                 .build();
@@ -174,7 +174,7 @@ class AuthorizationServiceTest {
         @Test
         void authorize_multipleAttributesMerged() {
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXT_ID)
                                 .attributes(Set.of(
                                                 attribute("extra_permissions", "price:BLOCK"),
@@ -198,7 +198,7 @@ class AuthorizationServiceTest {
         @Test
         void authorize_expiredAttribute_notInjected() {
                 SubjectAttribute expired = SubjectAttribute.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .attributeName("extra_permissions")
                                 .attributeValue("price:BLOCK")
                                 .valueType("STRING")
@@ -207,7 +207,7 @@ class AuthorizationServiceTest {
                                 .build();
 
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXT_ID)
                                 .attributes(Set.of(expired))
                                 .build();
@@ -226,7 +226,7 @@ class AuthorizationServiceTest {
         @Test
         void authorize_futureAttribute_notInjected() {
                 SubjectAttribute future = SubjectAttribute.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .attributeName("extra_permissions")
                                 .attributeValue("price:BLOCK")
                                 .valueType("STRING")
@@ -234,7 +234,7 @@ class AuthorizationServiceTest {
                                 .build();
 
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXT_ID)
                                 .attributes(Set.of(future))
                                 .build();
@@ -252,7 +252,7 @@ class AuthorizationServiceTest {
         @Test
         void authorize_validAttribute_withBoundaries_isInjected() {
                 SubjectAttribute valid = SubjectAttribute.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .attributeName("extra_permissions")
                                 .attributeValue("price:BLOCK")
                                 .valueType("STRING")
@@ -261,7 +261,7 @@ class AuthorizationServiceTest {
                                 .build();
 
                 Subject subject = Subject.builder()
-                                .id(UUID.randomUUID())
+                                .id((long) (Math.random() * 10000L))
                                 .externalId(EXT_ID)
                                 .attributes(Set.of(valid))
                                 .build();
@@ -289,10 +289,10 @@ class AuthorizationServiceTest {
                                 .resource("flight").action("READ").subjectAttributes(new HashMap<>()).build();
 
                 Subject shamimSubject = Subject.builder()
-                                .id(UUID.randomUUID()).externalId(EXT_ID)
+                                .id((long) (Math.random() * 10000L)).externalId(EXT_ID)
                                 .attributes(Set.of(attribute("extra_permissions", "price:BLOCK"))).build();
                 Subject mahtabSubject = Subject.builder()
-                                .id(UUID.randomUUID()).externalId("mahtab")
+                                .id((long) (Math.random() * 10000L)).externalId("mahtab")
                                 .attributes(new HashSet<>()).build();
 
                 when(subjectRepository.findByExternalIdWithAttributes(TENANT, EXT_ID))
@@ -306,6 +306,7 @@ class AuthorizationServiceTest {
 
                 verify(subjectRepository).findByExternalIdWithAttributes(TENANT, EXT_ID);
                 verify(subjectRepository).findByExternalIdWithAttributes(TENANT, "mahtab");
+                @SuppressWarnings("unchecked")
                 ArgumentCaptor<List<AuthorizationRequest>> captor = ArgumentCaptor.forClass(List.class);
                 verify(pdp).evaluateBatch(captor.capture());
 

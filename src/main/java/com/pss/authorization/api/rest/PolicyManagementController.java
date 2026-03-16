@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * REST API for ABAC Policy management.
@@ -36,7 +35,7 @@ public class PolicyManagementController {
     @GetMapping("/{id}")
     public ResponseEntity<Policy> getPolicy(
             @Parameter(description = "Tenant identifier", required = true) @RequestHeader("X-Tenant-ID") String tenantId,
-            @Parameter(description = "Policy UUID") @PathVariable UUID id) {
+            @Parameter(description = "Policy Long") @PathVariable Long id) {
         return policyService.getPolicy(id, tenantId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -54,7 +53,7 @@ public class PolicyManagementController {
     @PutMapping("/{id}")
     public ResponseEntity<Policy> updatePolicy(
             @Parameter(description = "Tenant identifier", required = true) @RequestHeader("X-Tenant-ID") String tenantId,
-            @Parameter(description = "Policy UUID") @PathVariable UUID id,
+            @Parameter(description = "Policy Long") @PathVariable Long id,
             @Valid @RequestBody Policy policy) {
         return policyService.updatePolicy(tenantId, id, policy)
                 .map(ResponseEntity::ok)
@@ -65,7 +64,7 @@ public class PolicyManagementController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePolicy(
             @Parameter(description = "Tenant identifier", required = true) @RequestHeader("X-Tenant-ID") String tenantId,
-            @Parameter(description = "Policy UUID") @PathVariable UUID id) {
+            @Parameter(description = "Policy Long") @PathVariable Long id) {
         return policyService.deletePolicy(tenantId, id)
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.notFound().build();

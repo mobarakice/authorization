@@ -105,7 +105,7 @@ class AbacEngineTest {
 
         private Policy buildPermitPolicy(String attrName, ConditionOperator operator, String expectedValue) {
                 AttributeDefinition attrDef = AttributeDefinition.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name(attrName)
                                 .category(AttributeCategory.SUBJECT)
                                 .dataType(AttributeDataType.STRING)
@@ -113,7 +113,7 @@ class AbacEngineTest {
                                 .build();
 
                 RuleCondition condition = RuleCondition.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .attribute(attrDef)
                                 .operator(operator)
                                 .expectedValue(expectedValue)
@@ -122,7 +122,7 @@ class AbacEngineTest {
                                 .build();
 
                 PolicyRule rule = PolicyRule.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("test-rule")
                                 .conditionLogic("AND")
                                 .active(true)
@@ -131,7 +131,7 @@ class AbacEngineTest {
                                 .build();
 
                 return Policy.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("test-policy")
                                 .targetResource(RESOURCE)
                                 .targetAction(ACTION)
@@ -273,7 +273,7 @@ class AbacEngineTest {
                 request.subjectAttributes().put("extra_permissions", "price:BLOCK");
 
                 AttributeDefinition attrDef = AttributeDefinition.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("extra_permissions")
                                 .category(AttributeCategory.SUBJECT)
                                 .dataType(AttributeDataType.STRING)
@@ -281,7 +281,7 @@ class AbacEngineTest {
                                 .build();
 
                 RuleCondition negatedCond = RuleCondition.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .attribute(attrDef)
                                 .operator(ConditionOperator.CONTAINS)
                                 .expectedValue("price:BLOCK")
@@ -290,7 +290,7 @@ class AbacEngineTest {
                                 .build();
 
                 PolicyRule rule = PolicyRule.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("negated-rule")
                                 .conditionLogic("AND")
                                 .active(true)
@@ -299,7 +299,7 @@ class AbacEngineTest {
                                 .build();
 
                 Policy policy = Policy.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("negated-policy")
                                 .targetResource(RESOURCE).targetAction(ACTION)
                                 .effect(PolicyEffect.PERMIT)
@@ -320,7 +320,7 @@ class AbacEngineTest {
                 request.subjectAttributes().put("extra_permissions", "price:BLOCK");
 
                 AttributeDefinition attrDef = AttributeDefinition.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("extra_permissions")
                                 .category(AttributeCategory.SUBJECT)
                                 .dataType(AttributeDataType.STRING)
@@ -329,14 +329,14 @@ class AbacEngineTest {
 
                 // First condition won't match, second will
                 RuleCondition cond1 = RuleCondition.builder()
-                                .id(UUID.randomUUID()).attribute(attrDef).operator(ConditionOperator.EQUALS)
+                                .id((long)(Math.random() * 10000L)).attribute(attrDef).operator(ConditionOperator.EQUALS)
                                 .expectedValue("wrong-value").negate(false).orderIndex(0).build();
                 RuleCondition cond2 = RuleCondition.builder()
-                                .id(UUID.randomUUID()).attribute(attrDef).operator(ConditionOperator.CONTAINS)
+                                .id((long)(Math.random() * 10000L)).attribute(attrDef).operator(ConditionOperator.CONTAINS)
                                 .expectedValue("price:BLOCK").negate(false).orderIndex(1).build();
 
                 PolicyRule rule = PolicyRule.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("or-rule")
                                 .conditionLogic("OR") // OR logic
                                 .active(true)
@@ -345,7 +345,7 @@ class AbacEngineTest {
                                 .build();
 
                 Policy policy = Policy.builder()
-                                .id(UUID.randomUUID())
+                                .id((long)(Math.random() * 10000L))
                                 .name("or-policy")
                                 .targetResource(RESOURCE).targetAction(ACTION)
                                 .effect(PolicyEffect.PERMIT)

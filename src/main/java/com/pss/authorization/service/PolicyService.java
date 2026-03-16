@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +23,7 @@ public class PolicyService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Policy> getPolicy(UUID id, String tenantId) {
+    public Optional<Policy> getPolicy(Long id, String tenantId) {
         return policyRepository.findByIdWithRulesAndConditions(id)
                 .filter(p -> p.getTenantId().equals(tenantId));
     }
@@ -38,7 +37,7 @@ public class PolicyService {
     }
 
     @Transactional
-    public Optional<Policy> updatePolicy(String tenantId, UUID id, Policy incoming) {
+    public Optional<Policy> updatePolicy(String tenantId, Long id, Policy incoming) {
         return policyRepository.findById(id)
                 .filter(p -> p.getTenantId().equals(tenantId))
                 .map(existing -> {
@@ -57,7 +56,7 @@ public class PolicyService {
     }
 
     @Transactional
-    public boolean deletePolicy(String tenantId, UUID id) {
+    public boolean deletePolicy(String tenantId, Long id) {
         return policyRepository.findById(id)
                 .filter(p -> p.getTenantId().equals(tenantId))
                 .map(policy -> {

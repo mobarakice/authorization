@@ -14,6 +14,7 @@ The `example-usecase.md` defines a PSS authorization domain with five resources,
 | **RBAC** | Role-based coarse access control | Subject, Role, Permission, Resource, SubjectAttribute |
 | **ABAC** | Attribute-based fine-grained control | Policy, PolicyRule, RuleCondition, AttributeDefinition |
 | **Hybrid** | Combining strategy orchestration | AuthorizationContext, ContextRule |
+| **Audit** | Compliance trail for authorization decisions | AuthorizationAuditLog |
 
 All entities share two base classes:
 
@@ -192,6 +193,46 @@ A key-value attribute attached to a subject, optionally time-bound. These are th
 
 ---
 
+#### `SubjectRoleAssignment` (join table: `subject_roles`)
+Captures subject → role assignment with lifecycle metadata. This is a join table in JPA, but it contains additional fields, so it behaves like an association entity in the database.
+
+| DB Column | Type | Notes |
+|---|---|---|
+| `subject_id` | BIGINT FK → `subjects` | |
+| `role_id` | BIGINT FK → `roles` | |
+| `assigned_at` | TIMESTAMP | assignment time |
+| `expires_at` | TIMESTAMP | optional expiry for temporary role grants |
+
+**Relationships:** `N:1 → Subject`, `N:1 → Role`.
+
+---
+
+#### `RolePermissionGrant` (join table: `role_permissions`)
+Captures role → permission grants with timestamp metadata. Also modeled as a pure join table in JPA, but includes extra fields.
+
+| DB Column | Type | Notes |
+|---|---|---|
+| `role_id` | BIGINT FK → `roles` | |
+| `permission_id` | BIGINT FK → `permissions` | |
+| `granted_at` | TIMESTAMP | when the permission was granted to the role |
+
+**Relationships:** `N:1 → Role`, `N:1 → Permission`.
+
+---
+
+#### `RoleHierarchyLink` (join table: `role_hierarchy`)
+Encodes parent/child role inheritance with a precomputed `depth` for fast ancestor checks.
+
+| DB Column | Type | Notes |
+|---|---|---|
+| `parent_role_id` | BIGINT FK → `roles` | |
+| `child_role_id` | BIGINT FK → `roles` | |
+| `depth` | INT | distance in the hierarchy tree |
+
+**Relationships:** `N:1 → Role (parent)`, `N:1 → Role (child)`.
+
+---
+
 ## 3. ABAC Layer
 
 ### Entity Map
@@ -249,6 +290,7 @@ Top-level ABAC rule targeting a resource + action combination.
 | `priority` | INT | lower = higher precedence |
 | `combining_algorithm` | ENUM | how multiple policies combine (see below) |
 | `active` | BOOLEAN | |
+| `bit_index` | INT | policy bitmap index for O(1) applicability lookups |
 | `version` | BIGINT | optimistic locking (`@Version`) |
 
 **`CombiningAlgorithm` values:**
@@ -394,7 +436,33 @@ Links an `AuthorizationContext` to either a `Role` (RBAC rule) or a `Policy` (AB
 
 ---
 
-## 5. Full Relationship Table
+## 5. Audit Layer
+
+### Entity Descriptions
+
+#### `AuthorizationAuditLog`
+Append-only audit log for compliance and traceability. Records each authorization decision with request context.
+
+| DB Column | Type | Notes |
+|---|---|---|
+| `id` | BIGINT PK | |
+| `tenant_id` | VARCHAR(64) | |
+| `subject_id` | VARCHAR(256) | external subject identifier (not a FK) |
+| `resource` | VARCHAR(256) | resource name |
+| `action` | VARCHAR(64) | action name |
+| `decision` | VARCHAR(16) | `PERMIT`, `DENY`, `NOT_APPLICABLE`, `INDETERMINATE` |
+| `mode` | VARCHAR(16) | `RBAC`, `ABAC`, `HYBRID` |
+| `determined_by` | VARCHAR(256) | policy or engine that decided |
+| `evaluation_time_ms` | DECIMAL(10,4) | latency |
+| `correlation_id` | VARCHAR(64) | request correlation |
+| `request_context` | JSONB | captured attributes/context |
+| `created_at` | TIMESTAMP | |
+
+**Relationships:** none (subject is stored by external ID string, not FK).
+
+---
+
+## 6. Full Relationship Table
 
 | Entity | → | Entity | Type | Join Table / FK | Notes |
 |---|---|---|---|---|---|
@@ -410,10 +478,17 @@ Links an `AuthorizationContext` to either a `Role` (RBAC rule) or a `Policy` (AB
 | AuthorizationContext | → | ContextRule | 1:N | FK `context_id` | ordered by `priority`; cascade delete |
 | ContextRule | → | Role | N:1 | FK `role_id` | nullable; RBAC-type rules only |
 | ContextRule | → | Policy | N:1 | FK `policy_id` | nullable; ABAC-type rules only |
+| SubjectRoleAssignment | → | Subject | N:1 | `subject_roles.subject_id` | includes `assigned_at`, `expires_at` |
+| SubjectRoleAssignment | → | Role | N:1 | `subject_roles.role_id` | association metadata |
+| RolePermissionGrant | → | Role | N:1 | `role_permissions.role_id` | includes `granted_at` |
+| RolePermissionGrant | → | Permission | N:1 | `role_permissions.permission_id` | association metadata |
+| RoleHierarchyLink | → | Role (parent) | N:1 | `role_hierarchy.parent_role_id` | includes `depth` |
+| RoleHierarchyLink | → | Role (child) | N:1 | `role_hierarchy.child_role_id` | association metadata |
+| AuthorizationAuditLog | → | (none) | — | — | append-only audit trail |
 
 ---
 
-## 6. Authorization Decision Flow
+## 7. Authorization Decision Flow
 
 ```
 POST /api/v1/authorize
@@ -445,7 +520,7 @@ AuthorizationService
 
 ---
 
-## 7. Key Design Patterns
+## 8. Key Design Patterns
 
 | Pattern | Where used | Why |
 |---|---|---|

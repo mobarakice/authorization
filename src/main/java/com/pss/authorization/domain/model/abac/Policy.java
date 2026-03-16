@@ -6,7 +6,6 @@ import lombok.*;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * ABAC Policy that defines access control rules based on attributes.
@@ -27,7 +26,9 @@ public class Policy extends TenantAwareEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     @Column(name = "name", nullable = false, length = 128)
     private String name;
@@ -86,13 +87,6 @@ public class Policy extends TenantAwareEntity {
     @Version
     @Column(name = "version")
     private Long version;
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 
     /**
      * Checks if this policy targets the given resource and action.

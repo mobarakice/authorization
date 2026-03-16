@@ -7,7 +7,6 @@ import lombok.*;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Represents a subject (user/service account) that can be authorized.
@@ -27,7 +26,9 @@ public class Subject extends TenantAwareEntity {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "entity_seq")
+    @SequenceGenerator(name = "entity_seq", sequenceName = "entity_sequence", allocationSize = 50)
+    private Long id;
 
     /**
      * External identifier from identity provider (e.g., sub claim from JWT).
@@ -66,13 +67,6 @@ public class Subject extends TenantAwareEntity {
     @OneToMany(mappedBy = "subject", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private Set<SubjectAttribute> attributes = new HashSet<>();
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 
     /**
      * Collects all permissions from all assigned roles (including inherited).
